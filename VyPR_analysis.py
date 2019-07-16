@@ -3,11 +3,13 @@ import requests
 import urllib2
 from datetime import datetime
 import pickle
+from graphviz import Digraph
 #from VyPR import monitor_synthesis
 #from flask import jsonify
 import sys
 sys.path.append("VyPR/")
 from monitor_synthesis.formula_tree import *
+from control_flow_graph.construction import *
 
 #server_url is a global variable which can be changed by passing a string to the set_server() function
 server_url=json.load(open('config.json'))["verdict_server_url"]
@@ -36,9 +38,11 @@ class function:
             call_class=function_call(call["id"],call["function"],call["time_of_call"],call["http_request"])
             calls_list.append(call_class)
         return calls_list
-    #def get_graph(self):
+    def get_graph(self):
         #returns scfg of function
-
+        location=json.load(open('config.json'))["monitored_service"]
+        #is it possible to return scfg via http?
+        #routes: scfg=paths.construct_function_scfg(self.fully_qualified_name)
 
 
 def Function(function_id):
@@ -75,11 +79,15 @@ class function_call:
             self.function=function
             self.time_of_call=time_of_call
             self.http_request=http_request
-    def first_observation_fail():
-        #observation.verdict gives a verdict - we need all observations such that
-        #verdict(observation.verdict).function_call=self.id 
-
-        return observation()
+    def first_observation_fail(self):
+        #returns the first (wrt verdicts) observation that causes failure for the given call
+        str=urllib2.urlopen(server_url+'client/first_observation_of_call_fail/%d/' % self.id).read()
+        if str=="None":
+            print("no such objects")
+            return
+        str=str[1:-1]
+        d=json.loads(str)
+        return observation(id=d["id"],instrumentation_point=d["instrumentation_point"],verdict=d["verdict"],observed_value=d["observed_value"],atom_index=d["atom_index"],previous_condition=d["previous_condition"])
 
 class verdict:
     def __init__(self,id,binding=None,verdict=None,time_obtained=None,function_call=None,collapsing_atom=None):
@@ -186,17 +194,23 @@ class instrumentation_point:
 """
 
 class observation:
-    def __init__(self,id):
+    def __init__(self,id,instrumentation_point=None,verdict=None,observed_value=None,atom_index=None,previous_condition=None):
         self.id=id
-        str=urllib2.urlopen(server_url+'client/get_observation_by_id/%d/' % self.id).read()
-        str=str[1:-1]
-        d=json.loads(str)
-        self.instrumentation_point=d["instrumentation_point"]
-        self.verdict=d["verdict"]
-        self.observed_value=d["observed_value"]
-        self.atom_index=d["atom_index"]
-        self.previous_condition=d["previous_condition"]
-
+        if instrumentation_point==None or verdict==None or observed_value==None or atom_index==None or previous_condition==None:
+            str=urllib2.urlopen(server_url+'client/get_observation_by_id/%d/' % self.id).read()
+            str=str[1:-1]
+            d=json.loads(str)
+            self.instrumentation_point=d["instrumentation_point"]
+            self.verdict=d["verdict"]
+            self.observed_value=d["observed_value"]
+            self.atom_index=d["atom_index"]
+            self.previous_condition=d["previous_condition"]
+        else:
+            self.instrumentation_point=instrumentation_point
+            self.verdict=verdict
+            self.observed_value=observed_value
+            self.atom_index=atom_index
+            self.previous_condition=previous_condition
 """
 class observation_assignment_pair:
     def __init__(self,id):
@@ -214,8 +228,16 @@ class path_condition:
     def __init__(self,id):
 """
 
-#def write_scfg(scfg_object,file_name):
-
+def write_scfg(scfg_object,file_name):
+    graph = Digraph()
+    graph.attr("graph", splines="true", fontsize="10")
+    shape = "rectangle"
+    for vertex in scfg.vertices:
+        graph.node(str(id(vertex)), str(vertex._name_changed), shape=shape)
+        for edge in vertex.edges:
+            graph.edge(str(id(vertex)),	str(id(edge._target_state)),"%s - %s - path length = %s" % (str(edge._operates_on) if not(type(edge._operates_on[0]) is ast.Print) else "print stmt",edge._condition,str(edge._target_state._path_length)))
+    graph.render(file_name)
+    print("Writing SCFG to file '%s'." % file_name)
 
 def main():
     """f1=function('app.routes.paths_branching_test')
@@ -238,6 +260,10 @@ def main():
     print(atom1s)
 
     print(len(get_atom_list(0)))
+    call1=function_call(1)
+    obs_fail=call1.first_observation_fail()
+    if obs_fail!=None:
+        print(obs_fail.id)
 
 if __name__ == "__main__":
     main()
