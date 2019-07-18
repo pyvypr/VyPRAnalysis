@@ -22,7 +22,7 @@ def main():
     print(atom1s)
 
     print(len(analysis.get_atom_list(1)))
-    call1=analysis.function_call(2)
+    call1=analysis.function_call(1)
     obs_fail=call1.first_observation_fail()
     if obs_fail!=None:
         print(obs_fail.id)
@@ -32,7 +32,7 @@ def main():
     #ppp=analysis.assignment(id=1)
     #print(ppp.variable)
     graphfile=open("graph_file","w+")
-    analysis.write_scfg(f1.get_graph(),graphfile)
+    analysis.write_scfg(f1.get_graph(),"graph_file")
     graphfile.close()
 
 if __name__ == "__main__":
