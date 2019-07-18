@@ -191,6 +191,31 @@ class verdict:
     def get_atom(self):
         return atom(index_in_atoms=self.collapsing_atom)
 
+def list_verdicts_with_value(value):
+    #called as list_verdicts(True) or list_verdicts(False)
+    #returns a list of objects 'class verdict' with the given value
+    str=urllib2.urlopen(server_url+'client/list_verdicts_with_value/%d/' % value).read()
+    if str=="None": raise ValueError('there are no such verdicts')
+    str=str[1:-1]
+    verdicts_dict=json.loads(str)
+    verdicts_list=[]
+    for v in verdicts_dict:
+        verdict_class=verdict(v["id"],v["binding"],v["time_obtained"],v["function_call"],v["collapsing_atom"])
+        verdicts_list.append(verdict_class)
+    return verdicts_list
+
+def list_verdicts_dict_with_value(value):
+    #finds all verdicts in the database with given value
+    #returns a dictionary with keys:
+    #from verdict - id, binding, verdict, time_obtained,
+    #from function_call - function, time_of_call
+    #from function - fully_qualified_name, property
+    str=urllib2.urlopen(server_url+'client/list_verdicts_function_property_by_value/%d/' % value).read()
+    if str=="None": raise ValueError('there are no such verdicts')
+    str=str[1:-1]
+    d=json.loads(str)
+    return d
+
 #class http_request represents the http_request table in the database
 #initialized as http_request(id=1) or http_request(time_of_request=t)
 class http_request:
@@ -309,6 +334,31 @@ class observation:
             self.observed_value=observed_value
             self.atom_index=atom_index
             self.previous_condition=previous_condition
+    def get_assignments(self):
+        str=urllib2.urlopen(server_url+'client/list_assignments_given_observation/%d/'% self.id).read()
+        if str=="None": raise ValueError('no assignments paired with given observation')
+        assignment_dict=json.loads(str)
+        assignment_list=[]
+        for a in assignment_dict:
+            assignment_class=assignment(a["id"],a["variable"],pickle.loads(a["value"]),a["type"])
+            assignment_list.append(assignment_class)
+        return assignment_list
+    def get_assignments_as_dictionary(self):
+        str=urllib2.urlopen(server_url+'client/list_assignments_given_observation/%d/'% self.id).read()
+        if str=="None": raise ValueError('no assignments paired with given observation')
+        assignment_dict=json.loads(str)
+        for a in assignment_dict:
+            #this should depend on type
+            str=a["value"]
+            a["value"]=pickle.loads(str)
+        return assignment_dict
+    def verdict_severity(self):
+        #formula=atom(index_in_atoms=self.atom_index).get_structure() ?
+        #how to read an interval from the structure?
+        x=self.observed_value
+        #d=min(abs(x-lower),abs(x-upper)) must define interval bounds
+        sign=-1+2*(verdict(self.verdict).verdict)
+        return sign*d
 
 class observation_assignment_pair:
     def __init__(self,observation,assignment):

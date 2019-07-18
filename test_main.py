@@ -21,7 +21,10 @@ def main():
     atom1s=verdict1.get_atom().get_structure()
     print(atom1s)
 
-    print(len(analysis.get_atom_list(1)))
+    obs=analysis.observation(id=1)
+    obs.verdict_severity()
+
+    """print(len(analysis.get_atom_list(1)))
     call1=analysis.function_call(1)
     obs_fail=call1.first_observation_fail()
     if obs_fail!=None:
@@ -33,7 +36,7 @@ def main():
     #print(ppp.variable)
     graphfile=open("graph_file","w+")
     analysis.write_scfg(f1.get_graph(),"graph_file")
-    graphfile.close()
+    graphfile.close()"""
 
 if __name__ == "__main__":
     main()
