@@ -166,6 +166,17 @@ class function_call:
         str=str[1:-1]
         d=json.loads(str)
         return observation(id=d["id"],instrumentation_point=d["instrumentation_point"],verdict=d["verdict"],observed_value=d["observed_value"],atom_index=d["atom_index"],previous_condition=d["previous_condition"])
+    def get_verdicts(self):
+        str=urllib2.urlopen(server_url+'client/list_verdicts_of_call/%d/'% self.id).read()
+        if str=="None": print('no verdicts for given function call')
+        verdicts_dict=json.loads(str)
+        verdicts_list=[]
+        for v in verdicts_dict:
+            verdict_class=verdict(v["id"],v["binding"],v["verdict"],v["time_obtained"],v["function_call"],v["collapsing_atom"])
+            verdicts_list.append(verdict_class)
+        return verdicts_list
+
+#does an observation have more or just one verdict?
 
 #class verdict has same objects as the table verdict in the database
 #initialized by either just the id or all the values
@@ -239,6 +250,9 @@ class http_request:
             raise ValueError('either id or time_of_request argument required')
     def get_calls(self):
         str=urllib2.urlopen(server_url+'client/list_function_calls_http/%d/'% self.id).read()
+        if str=="None":
+            print('no calls during the given request')
+            return
         calls_dict=json.loads(str)
         calls_list=[]
         for call in calls_dict:
@@ -282,6 +296,9 @@ class atom:
 #the idea is to list all atoms for which verdict is ture or false, is it even useful?
 def get_atom_list(verdict_value):
     str=urllib2.urlopen(server_url+'client/list_atoms_where_verdict/%d/'% verdict_value).read()
+    if str=="None":
+        print('there are no verdicts with given value')
+        return
     atoms_dict=json.loads(str)
     atoms_list=[]
     for atom_elem in atoms_dict:
@@ -374,7 +391,7 @@ class assignment:
             str=str[1:-1]
             d=json.loads(str)
             self.variable=d["variable"]
-            self.value=d["value"]
+            self.value=d["value"] #is it better to keep this serialised or to deserialise it?
             self.type=d["type"]
         else:
             self.variable=variable
