@@ -352,7 +352,7 @@ class observation:
             self.atom_index=atom_index
             self.previous_condition=previous_condition
     def get_assignments(self):
-        str=urllib2.urlopen(server_url+'client/list_assignments_given_observation/%d/'% self.id).read()
+        str=urllib2.urlopen(server_url+'client/get_assignment_dict_from_observation/%d/'% self.id).read()
         if str=="None": raise ValueError('no assignments paired with given observation')
         assignment_dict=json.loads(str)
         assignment_list=[]
@@ -361,13 +361,12 @@ class observation:
             assignment_list.append(assignment_class)
         return assignment_list
     def get_assignments_as_dictionary(self):
-        str=urllib2.urlopen(server_url+'client/list_assignments_given_observation/%d/'% self.id).read()
+        str=urllib2.urlopen(server_url+'client/get_assignment_dict_from_observation/%d/'% self.id).read()
         if str=="None": raise ValueError('no assignments paired with given observation')
         assignment_dict=json.loads(str)
         for a in assignment_dict:
-            #this should depend on type
-            str=a["value"]
-            a["value"]=pickle.loads(str)
+            # TODO: use assignment_dict[a][1] to decide if we need to import another type
+            assignment_dict[a] = pickle.loads(assignment_dict[a][0])
         return assignment_dict
     def verdict_severity(self):
         #formula=atom(index_in_atoms=self.atom_index).get_structure() ?
