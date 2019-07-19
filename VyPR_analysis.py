@@ -4,6 +4,7 @@ import urllib2
 from datetime import datetime
 import pickle
 from graphviz import Digraph
+import matplotlib.pyplot as plt
 #from VyPR import monitor_synthesis
 #from flask import jsonify
 import sys
@@ -175,6 +176,7 @@ class function_call:
             verdict_class=verdict(v["id"],v["binding"],v["verdict"],v["time_obtained"],v["function_call"],v["collapsing_atom"])
             verdicts_list.append(verdict_class)
         return verdicts_list
+    #def get_variables(self):
 
 
 
@@ -292,7 +294,7 @@ class atom:
         str=self.serialised_structure
         obj=pickle.loads(str)
         return obj
- 
+
 #the idea is to list all atoms for which verdict is ture or false, is it even useful?
 def get_atom_list(verdict_value):
     str=urllib2.urlopen(server_url+'client/list_atoms_where_verdict/%d/'% verdict_value).read()
@@ -369,10 +371,14 @@ class observation:
             assignment_dict[a] = pickle.loads(assignment_dict[a][0])
         return assignment_dict
     def verdict_severity(self):
-        #formula=atom(index_in_atoms=self.atom_index).get_structure() ?
-        #how to read an interval from the structure?
-        x=self.observed_value
-        #d=min(abs(x-lower),abs(x-upper)) must define interval bounds
+        formula=atom(index_in_atoms=self.atom_index).get_structure()
+        interval=formula._interval
+        lower=interval[0]
+        upper=interval[1]
+        x=float(self.observed_value)
+        #d is the distance from observed value to the nearest interval bound
+        d=min(abs(x-lower),abs(x-upper))
+        #sign=-1 if verdict value=0 and sign=1 if verdict is true
         sign=-1+2*(verdict(self.verdict).verdict)
         return sign*d
 

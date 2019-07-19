@@ -22,7 +22,7 @@ def main():
     print(atom1s)
 
     obs=analysis.observation(id=1)
-    obs.verdict_severity()
+    print(obs.verdict_severity())
 
     """print(len(analysis.get_atom_list(1)))
     call1=analysis.function_call(1)
