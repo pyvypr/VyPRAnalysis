@@ -176,7 +176,7 @@ class function_call:
             verdicts_list.append(verdict_class)
         return verdicts_list
 
-#does an observation have more or just one verdict?
+
 
 #class verdict has same objects as the table verdict in the database
 #initialized by either just the id or all the values
@@ -292,7 +292,7 @@ class atom:
         str=self.serialised_structure
         obj=pickle.loads(str)
         return obj
-
+ 
 #the idea is to list all atoms for which verdict is ture or false, is it even useful?
 def get_atom_list(verdict_value):
     str=urllib2.urlopen(server_url+'client/list_atoms_where_verdict/%d/'% verdict_value).read()
