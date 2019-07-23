@@ -337,6 +337,17 @@ class instrumentation_point:
         else:
             self.serialised_condition_sequence=serialised_condition_sequence
             self.reaching_path_length=reaching_path_length
+    def get_observations(self):
+        str=urllib2.urlopen(server_url+'client/list_observations_of_point/%d/'% self.id).read()
+        if str=="None":
+            print('no observations for given instrumentation point')
+            return
+        obs_dict=json.loads(str)
+        obs_list=[]
+        for o in obs_dict:
+            obs_class=observation(o["id"],o["instrumentation_point"],o["verdict"],o["observed_value"],o["atom_index"],o["previous_condition"])
+            obs_list.append(obs_class)
+        return obs_list
 
 class observation:
     def __init__(self,id,instrumentation_point=None,verdict=None,observed_value=None,atom_index=None,previous_condition=None):

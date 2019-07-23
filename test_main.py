@@ -5,16 +5,17 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 
 def plot_severity_vs_time(call_id=None):
-    if call_id!=None:
+    """if call_id!=None:
         call=analysis.function_call(call_id)
         observations=call.get_observations()
     else:
-        observations=analysis.list_observations()
-    """valuations=[]
-    for obs in observations:
-        a_list=obs.get_assignments()
-        for assignment in a_list:
-            valuations.append(assignment)"""
+        observations=analysis.list_observations()"""
+
+    call=analysis.function_call(call_id)
+    failed_observation=call.first_observation_fail()
+    inst_point=analysis.instrumentation_point(failed_observation.instrumentation_point)
+    observations=inst_point.get_observations()
+
     t=[]
     s=[]
     for obs in observations:
@@ -69,7 +70,7 @@ def main():
     analysis.write_scfg(f1.get_graph(),"graph_file")
     graphfile.close()
 
-    plot_severity_vs_time()
+    plot_severity_vs_time(1)
 
 if __name__ == "__main__":
     main()
