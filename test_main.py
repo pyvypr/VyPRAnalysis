@@ -1,4 +1,28 @@
 import VyPR_analysis as analysis
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from datetime import datetime
+
+def plot_severity_vs_time(call_id=None):
+    if call_id!=None:
+        call=analysis.function_call(call_id)
+        observations=call.get_observations()
+    else:
+        observations=analysis.list_observations()
+    """valuations=[]
+    for obs in observations:
+        a_list=obs.get_assignments()
+        for assignment in a_list:
+            valuations.append(assignment)"""
+    t=[]
+    s=[]
+    for obs in observations:
+        time=analysis.verdict(obs.verdict).time_obtained
+        t.append(datetime.strptime(time,'%Y-%m-%dT%H:%M:%S.%f'))
+        s.append(obs.verdict_severity())
+    plt.plot(matplotlib.dates.date2num(t),s,'rs')
+    plt.savefig('plot')
 
 def main():
     analysis.set_server("http://127.0.0.1:9005/")
@@ -31,7 +55,7 @@ def main():
         print("function id=",v["function"])
         print("verdict time:",v["time_obtained"])
 
-    """print(len(analysis.get_atom_list(1)))
+    print(len(analysis.get_atom_list(1)))
     call1=analysis.function_call(1)
     obs_fail=call1.first_observation_fail()
     if obs_fail!=None:
@@ -43,7 +67,9 @@ def main():
     #print(ppp.variable)
     graphfile=open("graph_file","w+")
     analysis.write_scfg(f1.get_graph(),"graph_file")
-    graphfile.close()"""
+    graphfile.close()
+
+    plot_severity_vs_time()
 
 if __name__ == "__main__":
     main()

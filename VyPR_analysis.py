@@ -176,9 +176,15 @@ class function_call:
             verdict_class=verdict(v["id"],v["binding"],v["verdict"],v["time_obtained"],v["function_call"],v["collapsing_atom"])
             verdicts_list.append(verdict_class)
         return verdicts_list
-    #def get_variables(self)
-
-
+    def get_observations(self):
+        str=urllib2.urlopen(server_url+'client/list_observations_during_call/%d/'% self.id).read()
+        if str=="None": print('no observations for given function call')
+        obs_dict=json.loads(str)
+        obs_list=[]
+        for o in obs_dict:
+            obs_class=observation(o["id"],o["instrumentation_point"],o["verdict"],o["observed_value"],o["atom_index"],o["previous_condition"])
+            obs_list.append(obs_class)
+        return obs_list
 
 #class verdict has same objects as the table verdict in the database
 #initialized by either just the id or all the values
@@ -357,7 +363,7 @@ class observation:
         assignment_dict=json.loads(str)
         assignment_list=[]
         for a in assignment_dict:
-            assignment_class=assignment(a["id"],a["variable"],pickle.loads(a["value"]),a["type"])
+            assignment_class=assignment(a["id"],a["variable"],a["value"],a["type"])
             assignment_list.append(assignment_class)
         return assignment_list
     def get_assignments_as_dictionary(self):
@@ -482,5 +488,14 @@ def write_scfg(scfg_object,file_name):
     graph.render(file_name)
     print("Writing SCFG to file '%s'." % file_name)
 
-def plot_severity_vs_time():
-    valuations=obs.get_assignments_as_dictionary()
+def list_observations():
+    str=urllib2.urlopen(server_url+'client/list_observations/').read()
+    if str=="None":
+        print('no observations')
+        return
+    obs_dict=json.loads(str)
+    obs_list=[]
+    for o in obs_dict:
+        obs_class=observation(o["id"],o["instrumentation_point"],o["verdict"],o["observed_value"],o["atom_index"],o["previous_condition"])
+        obs_list.append(obs_class)
+    return obs_list
