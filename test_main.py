@@ -4,26 +4,32 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from datetime import datetime
 
-def plot_severity_vs_time(call_id=None):
+def plot_severity_vs_time(f):
     """if call_id!=None:
         call=analysis.function_call(call_id)
         observations=call.get_observations()
     else:
         observations=analysis.list_observations()"""
 
-    call=analysis.function_call(call_id)
+    call=f.get_calls_with_failed_verdict()[0]
     failed_observation=call.first_observation_fail()
     inst_point=analysis.instrumentation_point(failed_observation.instrumentation_point)
     observations=inst_point.get_observations()
 
     t=[]
     s=[]
+
     for obs in observations:
         time=analysis.verdict(obs.verdict).time_obtained
+        print(time)
+        #t.append(matplotlib.dates.date2num(datetime.strptime(time,'%Y-%m-%dT%H:%M:%S.%f')))
         t.append(datetime.strptime(time,'%Y-%m-%dT%H:%M:%S.%f'))
         s.append(obs.verdict_severity())
-    plt.plot(matplotlib.dates.date2num(t),s,'rs')
-    plt.savefig('plot')
+        print(datetime.strptime(time,'%Y-%m-%dT%H:%M:%S.%f'), obs.verdict_severity())
+    print(t)
+    print(s)
+    plt.plot(t ,s,'.')
+    plt.savefig('plot.pdf')
 
 def main():
     analysis.set_server("http://127.0.0.1:9005/")
@@ -70,7 +76,7 @@ def main():
     analysis.write_scfg(f1.get_graph(),"graph_file")
     graphfile.close()
 
-    plot_severity_vs_time(1)
+    plot_severity_vs_time(analysis.function(1))
 
 if __name__ == "__main__":
     main()
