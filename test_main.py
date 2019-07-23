@@ -24,6 +24,13 @@ def main():
     obs=analysis.observation(id=1)
     print(obs.verdict_severity())
 
+    true_verdicts=analysis.list_verdicts_dict_with_value(1)
+    print(true_verdicts)
+    for v in true_verdicts:
+        print(v)
+        print("function id=",v["function"])
+        print("verdict time:",v["time_obtained"])
+
     """print(len(analysis.get_atom_list(1)))
     call1=analysis.function_call(1)
     obs_fail=call1.first_observation_fail()

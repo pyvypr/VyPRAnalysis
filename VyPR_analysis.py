@@ -4,7 +4,7 @@ import urllib2
 from datetime import datetime
 import pickle
 from graphviz import Digraph
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 #from VyPR import monitor_synthesis
 #from flask import jsonify
 import sys
@@ -176,7 +176,7 @@ class function_call:
             verdict_class=verdict(v["id"],v["binding"],v["verdict"],v["time_obtained"],v["function_call"],v["collapsing_atom"])
             verdicts_list.append(verdict_class)
         return verdicts_list
-    #def get_variables(self):
+    #def get_variables(self)
 
 
 
@@ -209,7 +209,6 @@ def list_verdicts_with_value(value):
     #returns a list of objects 'class verdict' with the given value
     str=urllib2.urlopen(server_url+'client/list_verdicts_with_value/%d/' % value).read()
     if str=="None": raise ValueError('there are no such verdicts')
-    str=str[1:-1]
     verdicts_dict=json.loads(str)
     verdicts_list=[]
     for v in verdicts_dict:
@@ -225,7 +224,6 @@ def list_verdicts_dict_with_value(value):
     #from function - fully_qualified_name, property
     str=urllib2.urlopen(server_url+'client/list_verdicts_function_property_by_value/%d/' % value).read()
     if str=="None": raise ValueError('there are no such verdicts')
-    str=str[1:-1]
     d=json.loads(str)
     return d
 
@@ -379,7 +377,7 @@ class observation:
         #d is the distance from observed value to the nearest interval bound
         d=min(abs(x-lower),abs(x-upper))
         #sign=-1 if verdict value=0 and sign=1 if verdict is true
-        sign=-1+2*(verdict(self.verdict).verdict)
+        sign=-1+2*(formula.check(x))
         return sign*d
 
 class observation_assignment_pair:
@@ -483,3 +481,6 @@ def write_scfg(scfg_object,file_name):
             graph.edge(str(id(vertex)),	str(id(edge._target_state)),"%s - %s - path length = %s" % (str(edge._operates_on) if not(type(edge._operates_on[0]) is ast.Print) else "print stmt",edge._condition,str(edge._target_state._path_length)))
     graph.render(file_name)
     print("Writing SCFG to file '%s'." % file_name)
+
+def plot_severity_vs_time():
+    valuations=obs.get_assignments_as_dictionary()
