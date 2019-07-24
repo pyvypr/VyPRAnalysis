@@ -11,25 +11,54 @@ def plot_severity_vs_time(f):
     else:
         observations=analysis.list_observations()"""
 
+    #get a function call of the given function such that there was a failure during the call
     call=f.get_calls_with_failed_verdict()[0]
-    failed_observation=call.first_observation_fail()
-    inst_point=analysis.instrumentation_point(failed_observation.instrumentation_point)
-    observations=inst_point.get_observations()
 
+    #find the first observation wrt verdicts that caused the failure
+    failed_observation=call.first_observation_fail()
+
+    #find the instrumentation point at which the failed observation failed
+    inst_point=analysis.instrumentation_point(failed_observation.instrumentation_point)
+
+    #get all the observations of that instrumentation point, whether they failed or not
+    observations=inst_point.get_observations()
+    ids=[] #will contain IDs of assignments
     t=[]
     s=[]
 
+    #group observations by the assignments they are paired with
+    #t and s are lists, they have as many elements as there are groups (assignments)
+    #their elements are lists of time points and verdict severity values
     for obs in observations:
-        time=analysis.verdict(obs.verdict).time_obtained
-        print(time)
-        #t.append(matplotlib.dates.date2num(datetime.strptime(time,'%Y-%m-%dT%H:%M:%S.%f')))
-        t.append(datetime.strptime(time,'%Y-%m-%dT%H:%M:%S.%f'))
-        s.append(obs.verdict_severity())
-        print(datetime.strptime(time,'%Y-%m-%dT%H:%M:%S.%f'), obs.verdict_severity())
-    print(t)
-    print(s)
-    plt.plot(t ,s,'.')
-    plt.savefig('plot.pdf')
+        assignments=obs.get_assignments()
+        n=len(assignments)
+        for a in assignments:
+            if a.id not in ids:
+                ids.append(a.id)
+                t.append([])
+                s.append([])
+            time=analysis.verdict(obs.verdict).time_obtained
+            #print(time)
+            #t.append(matplotlib.dates.date2num(datetime.strptime(time,'%Y-%m-%dT%H:%M:%S.%f')))
+            t[ids.index(a.id)].append(datetime.strptime(time,'%Y-%m-%dT%H:%M:%S.%f'))
+            s[ids.index(a.id)].append(obs.verdict_severity())
+            #print(datetime.strptime(time,'%Y-%m-%dT%H:%M:%S.%f'), obs.verdict_severity())
+
+    """
+    #this part is for plotting multiple figures into the same file
+    fig, ax = plt.subplots(nrows=1,ncols=len(ids))
+    for i in ids:
+        ind=ids.index(i)
+        ax[ind].plot(t[ind] ,s[ind],'.')"""
+
+    for i in ids:
+        ind=ids.index(i)
+        plt.plot(t[ind],s[ind],'.')
+        plt.xlabel('time verdict was obtained')
+        plt.ylabel('verdict severity')
+        plt.margins(0.05)
+        plt.savefig('plot_%d.pdf'%i)
+        plt.close() #move after loop to get a plot of all dots on the same graph (coloured by assignment)
 
 def main():
     analysis.set_server("http://127.0.0.1:9005/")
