@@ -81,6 +81,14 @@ class function:
             call_class=function_call(call["id"],call["function"],call["time_of_call"],call["http_request"])
             calls_list.append(call_class)
         return calls_list
+    def get_calls_with_failed_verdict(self):
+        str=urllib2.urlopen(server_url+'client/list_function_calls_failed_verdict/%d/'%(self.id)).read()
+        calls_dict=json.loads(str)
+        calls_list=[]
+        for call in calls_dict:
+            call_class=function_call(call["id"],call["function"],call["time_of_call"],call["http_request"])
+            calls_list.append(call_class)
+        return calls_list
     def get_graph(self):
         #returns scfg of function
         func=self.fully_qualified_name
@@ -369,7 +377,7 @@ class observation:
             self.atom_index=atom_index
             self.previous_condition=previous_condition
     def get_assignments(self):
-        str=urllib2.urlopen(server_url+'client/get_assignment_dict_from_observation/%d/'% self.id).read()
+        str=urllib2.urlopen(server_url+'client/list_assignments_given_observation/%d/'% self.id).read()
         if str=="None": raise ValueError('no assignments paired with given observation')
         assignment_dict=json.loads(str)
         assignment_list=[]
