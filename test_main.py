@@ -4,7 +4,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from datetime import datetime
 
-def plot_severity_vs_time(f):
+def plot_severity_vs_time(f,severity_function=analysis.verdict_severity):
     """if call_id!=None:
         call=analysis.function_call(call_id)
         observations=call.get_observations()
@@ -26,7 +26,7 @@ def plot_severity_vs_time(f):
     t=[]
     s=[]
 
-    #group observations by the assignments they are paired with
+    #grouping observations by the assignments they are paired with
     #t and s are lists, they have as many elements as there are groups (assignments)
     #their elements are lists of time points and verdict severity values
     for obs in observations:
@@ -41,7 +41,7 @@ def plot_severity_vs_time(f):
             #print(time)
             #t.append(matplotlib.dates.date2num(datetime.strptime(time,'%Y-%m-%dT%H:%M:%S.%f')))
             t[ids.index(a.id)].append(datetime.strptime(time,'%Y-%m-%dT%H:%M:%S.%f'))
-            s[ids.index(a.id)].append(obs.verdict_severity())
+            s[ids.index(a.id)].append(severity_function(obs))
             #print(datetime.strptime(time,'%Y-%m-%dT%H:%M:%S.%f'), obs.verdict_severity())
 
     """
