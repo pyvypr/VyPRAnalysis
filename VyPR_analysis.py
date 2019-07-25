@@ -126,7 +126,6 @@ class property:
             str=urllib2.urlopen(server_url+'client/get_property_by_hash/%s/' % hash).read()
             if str=="None":
                 raise ValueError('no such property')
-                #do we want this or to return an empty class and display a message?
             else:
                 str=str[1:-1]
                 f_dict=json.loads(str)
@@ -404,6 +403,9 @@ class observation:
         #sign=-1 if verdict value=0 and sign=1 if verdict is true
         sign=-1+2*(formula.check(x))
         return sign*d
+
+def verdict_severity(obs):
+    return obs.verdict_severity()
 
 class observation_assignment_pair:
     def __init__(self,observation,assignment):
