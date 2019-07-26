@@ -4,6 +4,7 @@ import urllib2
 from datetime import datetime
 import pickle
 from graphviz import Digraph
+#import matplotlib.pyplot as plt
 #from VyPR import monitor_synthesis
 #from flask import jsonify
 import sys
@@ -13,9 +14,10 @@ from monitor_synthesis.formula_tree import *
 from control_flow_graph.construction import *
 #from control_flow_graph.parse_tree import ParseTree
 
-#server_url is a global variable which can be changed by passing a string to the set_server() function
+
 server_url=json.load(open('config.json'))["verdict_server_url"]
 def set_server(given_url):
+    """server_url is a global variable which can be changed by passing a string to the set_server() function"""
     global server_url
     server_url=given_url
 
@@ -44,10 +46,13 @@ def get_qualifier_subsequence(function_qualifier):
 
 	return tokens
 
-#class function represents the table function in the database
-#it is initialized by its name or id
-#as f=function(id=1) or f=function(fully_qualified_name=name)
+
 class function:
+
+    """class function represents the table function in the database
+    it is initialized by its name or id
+    as f=function(id=1) or f=function(fully_qualified_name=name)"""
+
     def __init__(self, id=None, fully_qualified_name=None):
         if id==None and fully_qualified_name==None:
             raise ValueError('id or name of function needed as argument')
@@ -66,10 +71,11 @@ class function:
             self.fully_qualified_name=f_dict["fully_qualified_name"]
             self.property=f_dict["property"]
 
-    #function.get_calls() returns a list of calls for the given function
-    #if given the optional parameter value, it returns the list of the
-    #function calls which happened during the given http_request
     def get_calls(self, request=None):
+        """function.get_calls() returns a list of calls for the given function
+        if given the optional parameter value, it returns the list of the
+        function calls which happened during the given http_request"""
+
         if request==None:
             str=urllib2.urlopen(server_url+'client/list_function_calls_f/%s/'% self.fully_qualified_name).read()
         else:
@@ -80,8 +86,18 @@ class function:
             call_class=function_call(call["id"],call["function"],call["time_of_call"],call["http_request"])
             calls_list.append(call_class)
         return calls_list
+
+    def get_calls_with_failed_verdict(self):
+        str=urllib2.urlopen(server_url+'client/list_function_calls_failed_verdict/%d/'%(self.id)).read()
+        calls_dict=json.loads(str)
+        calls_list=[]
+        for call in calls_dict:
+            call_class=function_call(call["id"],call["function"],call["time_of_call"],call["http_request"])
+            calls_list.append(call_class)
+        return calls_list
+
     def get_graph(self):
-        #returns scfg of function
+        """returns scfg of function"""
         func=self.fully_qualified_name
         location=json.load(open('config.json'))["monitored_service"]
         module = func[0:func.rindex(".")]
@@ -117,7 +133,6 @@ class property:
             str=urllib2.urlopen(server_url+'client/get_property_by_hash/%s/' % hash).read()
             if str=="None":
                 raise ValueError('no such property')
-                #do we want this or to return an empty class and display a message?
             else:
                 str=str[1:-1]
                 f_dict=json.loads(str)
@@ -141,9 +156,11 @@ class binding:
         self.function=function
         self.binding_statement_lines=binding_statement_lines
 
-#class function_call represents the homonymous table in the database
-#initialized by either just the id or all the values
+
 class function_call:
+    """class function_call represents the homonymous table in the database
+    initialized by either just the id or all the values"""
+
     def __init__(self,id,function=None,time_of_call=None,http_request=None):
         self.id=id
         if function==None or time_of_call==None or http_request==None:
@@ -157,15 +174,19 @@ class function_call:
             self.function=function
             self.time_of_call=time_of_call
             self.http_request=http_request
-    def first_observation_fail(self):
-        #returns the first (wrt verdicts) observation that causes failure for the given call
-        str=urllib2.urlopen(server_url+'client/first_observation_of_call_fail/%d/' % self.id).read()
+
+    def get_falsifying_observation(self):
+        """returns the first (wrt verdicts) observation that causes
+        failure for the given call"""
+
+        str=urllib2.urlopen(server_url+'client/get_falsifying_observation_for_call/%d/' % self.id).read()
         if str=="None":
             print("no such objects")
             return
         str=str[1:-1]
         d=json.loads(str)
         return observation(id=d["id"],instrumentation_point=d["instrumentation_point"],verdict=d["verdict"],observed_value=d["observed_value"],atom_index=d["atom_index"],previous_condition=d["previous_condition"])
+
     def get_verdicts(self):
         str=urllib2.urlopen(server_url+'client/list_verdicts_of_call/%d/'% self.id).read()
         if str=="None": print('no verdicts for given function call')
@@ -176,12 +197,21 @@ class function_call:
             verdicts_list.append(verdict_class)
         return verdicts_list
 
-#does an observation have more or just one verdict?
+    def get_observations(self):
+        str=urllib2.urlopen(server_url+'client/list_observations_during_call/%d/'% self.id).read()
+        if str=="None": print('no observations for given function call')
+        obs_dict=json.loads(str)
+        obs_list=[]
+        for o in obs_dict:
+            obs_class=observation(o["id"],o["instrumentation_point"],o["verdict"],o["observed_value"],o["atom_index"],o["previous_condition"])
+            obs_list.append(obs_class)
+        return obs_list
 
-#class verdict has same objects as the table verdict in the database
-#initialized by either just the id or all the values
-#function verdict.get_atom() returns the atom which the given verdict concerns
+
 class verdict:
+    """class verdict has same objects as the table verdict in the database
+    initialized by either just the id or all the values
+    function verdict.get_atom() returns the atom which the given verdict concerns"""
     def __init__(self,id,binding=None,verdict=None,time_obtained=None,function_call=None,collapsing_atom=None):
         self.id=id
         if binding==None:
@@ -199,15 +229,17 @@ class verdict:
             self.time_obtained=time_obtained
             self.function_call=function_call
             self.collapsing_atom=collapsing_atom
-    def get_atom(self):
+
+    def get_collapsing_atom(self):
         return atom(index_in_atoms=self.collapsing_atom)
 
 def list_verdicts_with_value(value):
-    #called as list_verdicts(True) or list_verdicts(False)
-    #returns a list of objects 'class verdict' with the given value
+
+    """called as list_verdicts(True) or list_verdicts(False)
+    returns a list of objects 'class verdict' with the given value"""
+
     str=urllib2.urlopen(server_url+'client/list_verdicts_with_value/%d/' % value).read()
     if str=="None": raise ValueError('there are no such verdicts')
-    str=str[1:-1]
     verdicts_dict=json.loads(str)
     verdicts_list=[]
     for v in verdicts_dict:
@@ -215,21 +247,25 @@ def list_verdicts_with_value(value):
         verdicts_list.append(verdict_class)
     return verdicts_list
 
+
 def list_verdicts_dict_with_value(value):
-    #finds all verdicts in the database with given value
-    #returns a dictionary with keys:
-    #from verdict - id, binding, verdict, time_obtained,
-    #from function_call - function, time_of_call
-    #from function - fully_qualified_name, property
+
+    """finds all verdicts in the database with given value
+    returns a dictionary with keys:
+    from verdict - id, binding, verdict, time_obtained,
+    from function_call - function, time_of_call
+    from function - fully_qualified_name, property"""
+
     str=urllib2.urlopen(server_url+'client/list_verdicts_function_property_by_value/%d/' % value).read()
     if str=="None": raise ValueError('there are no such verdicts')
-    str=str[1:-1]
     d=json.loads(str)
     return d
 
-#class http_request represents the http_request table in the database
-#initialized as http_request(id=1) or http_request(time_of_request=t)
+
 class http_request:
+    """class http_request represents the http_request table in the database
+    initialized as http_request(id=1) or http_request(time_of_request=t)"""
+
     def __init__(self, id=None, time_of_request=None):
         if id!=None:
             self.id=id
@@ -248,6 +284,7 @@ class http_request:
             self.id=d["id"]
         else:
             raise ValueError('either id or time_of_request argument required')
+
     def get_calls(self):
         str=urllib2.urlopen(server_url+'client/list_function_calls_http/%d/'% self.id).read()
         if str=="None":
@@ -260,8 +297,12 @@ class http_request:
             calls_list.append(call_class)
         return calls_list
 
-#initialized as either atom(id=n) or atom(index_in_atoms=n) or with all arguments if known
 class atom:
+    """
+    initialized as either atom(id=n) or atom(index_in_atoms=n)
+    or with all arguments if known
+    """
+
     def __init__(self,id=None,property_hash=None,serialised_structure=None,index_in_atoms=None):
         if id!=None and property_hash!=None and serialised_structure!=None and index_in_atoms!=None:
             self.id=id
@@ -288,13 +329,18 @@ class atom:
             else:
                 raise ValueError('either id or index_in_atoms argument needed to initialize object')
     def get_structure(self):
-        #atom.get_structure() returns the serialised structure of the atom in decoded format
+        """
+        atom.get_structure() returns the serialised structure of the atom in decoded format
+        """
         str=self.serialised_structure
         obj=pickle.loads(str)
         return obj
 
-#the idea is to list all atoms for which verdict is ture or false, is it even useful?
 def get_atom_list(verdict_value):
+    """
+    the idea is to list all atoms for which verdict is ture or false
+    """
+
     str=urllib2.urlopen(server_url+'client/list_atoms_where_verdict/%d/'% verdict_value).read()
     if str=="None":
         print('there are no verdicts with given value')
@@ -317,6 +363,7 @@ class binding_instrumentation_point_pair:
         self.instrumentation_point=instrumentation_point
 
 class instrumentation_point:
+
     def __init__(self,id,serialised_condition_sequence=None,reaching_path_length=None):
         self.id=id
         if serialised_condition_sequence==None or reaching_path_length==None:
@@ -332,7 +379,20 @@ class instrumentation_point:
             self.serialised_condition_sequence=serialised_condition_sequence
             self.reaching_path_length=reaching_path_length
 
+    def get_observations(self):
+        str=urllib2.urlopen(server_url+'client/list_observations_of_point/%d/'% self.id).read()
+        if str=="None":
+            print('no observations for given instrumentation point')
+            return
+        obs_dict=json.loads(str)
+        obs_list=[]
+        for o in obs_dict:
+            obs_class=observation(o["id"],o["instrumentation_point"],o["verdict"],o["observed_value"],o["atom_index"],o["previous_condition"])
+            obs_list.append(obs_class)
+        return obs_list
+
 class observation:
+
     def __init__(self,id,instrumentation_point=None,verdict=None,observed_value=None,atom_index=None,previous_condition=None):
         self.id=id
         if instrumentation_point==None or verdict==None or observed_value==None or atom_index==None or previous_condition==None:
@@ -351,30 +411,43 @@ class observation:
             self.observed_value=observed_value
             self.atom_index=atom_index
             self.previous_condition=previous_condition
+
     def get_assignments(self):
-        str=urllib2.urlopen(server_url+'client/get_assignment_dict_from_observation/%d/'% self.id).read()
+        str=urllib2.urlopen(server_url+'client/list_assignments_given_observation/%d/'% self.id).read()
         if str=="None": raise ValueError('no assignments paired with given observation')
         assignment_dict=json.loads(str)
         assignment_list=[]
         for a in assignment_dict:
-            assignment_class=assignment(a["id"],a["variable"],pickle.loads(a["value"]),a["type"])
+            assignment_class=assignment(a["id"],a["variable"],a["value"],a["type"])
             assignment_list.append(assignment_class)
         return assignment_list
+
     def get_assignments_as_dictionary(self):
-        str=urllib2.urlopen(server_url+'client/get_assignment_dict_from_observation/%d/'% self.id).read()
+        str=urllib2.urlopen(server_url+'/client/get_assignment_dict_from_observation/%d/'% self.id).read()
         if str=="None": raise ValueError('no assignments paired with given observation')
         assignment_dict=json.loads(str)
         for a in assignment_dict:
             # TODO: use assignment_dict[a][1] to decide if we need to import another type
             assignment_dict[a] = pickle.loads(assignment_dict[a][0])
         return assignment_dict
+
     def verdict_severity(self):
-        #formula=atom(index_in_atoms=self.atom_index).get_structure() ?
-        #how to read an interval from the structure?
-        x=self.observed_value
-        #d=min(abs(x-lower),abs(x-upper)) must define interval bounds
-        sign=-1+2*(verdict(self.verdict).verdict)
+        formula=atom(index_in_atoms=self.atom_index).get_structure()
+        interval=formula._interval
+        lower=interval[0]
+        upper=interval[1]
+        x=float(self.observed_value)
+        #d is the distance from observed value to the nearest interval bound
+        d=min(abs(x-lower),abs(x-upper))
+        #sign=-1 if verdict value=0 and sign=1 if verdict is true
+        sign=-1+2*(formula.check(x))
         return sign*d
+
+    def get_instrumentation_point(self):
+        return instrumentation_point(id=self.instrumentation_point)
+
+def verdict_severity(obs):
+    return obs.verdict_severity()
 
 class observation_assignment_pair:
     def __init__(self,observation,assignment):
@@ -477,3 +550,15 @@ def write_scfg(scfg_object,file_name):
             graph.edge(str(id(vertex)),	str(id(edge._target_state)),"%s - %s - path length = %s" % (str(edge._operates_on) if not(type(edge._operates_on[0]) is ast.Print) else "print stmt",edge._condition,str(edge._target_state._path_length)))
     graph.render(file_name)
     print("Writing SCFG to file '%s'." % file_name)
+
+def list_observations():
+    str=urllib2.urlopen(server_url+'client/list_observations/').read()
+    if str=="None":
+        print('no observations')
+        return
+    obs_dict=json.loads(str)
+    obs_list=[]
+    for o in obs_dict:
+        obs_class=observation(o["id"],o["instrumentation_point"],o["verdict"],o["observed_value"],o["atom_index"],o["previous_condition"])
+        obs_list.append(obs_class)
+    return obs_list
