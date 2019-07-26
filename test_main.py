@@ -3,22 +3,17 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from datetime import datetime
+import pickle
 
 def plot_severity_vs_time(f,severity_function=analysis.verdict_severity):
-    """if call_id!=None:
-        call=analysis.function_call(call_id)
-        observations=call.get_observations()
-    else:
-        observations=analysis.list_observations()"""
-
     #get a function call of the given function such that there was a failure during the call
     call=f.get_calls_with_failed_verdict()[0]
 
     #find the first observation wrt verdicts that caused the failure
-    failed_observation=call.first_observation_fail()
+    failed_observation=call.get_falsifying_observation()
 
     #find the instrumentation point at which the failed observation failed
-    inst_point=analysis.instrumentation_point(failed_observation.instrumentation_point)
+    inst_point=failed_observation.get_instrumentation_point()
 
     #get all the observations of that instrumentation point, whether they failed or not
     observations=inst_point.get_observations()
@@ -29,8 +24,28 @@ def plot_severity_vs_time(f,severity_function=analysis.verdict_severity):
     #grouping observations by the assignments they are paired with
     #t and s are lists, they have as many elements as there are groups (assignments)
     #their elements are lists of time points and verdict severity values
+    valuations=[]
     for obs in observations:
         assignments=obs.get_assignments()
+        print(obs.id)
+        final_dict=dict()
+        for a in assignments:
+            a=vars(a)
+            a["value"]=pickle.loads(a["value"])
+            print(a)
+            final_dict[a["variable"]]=a["value"]
+
+        if final_dict not in valuations:
+            valuations.append(final_dict)
+            t.append([])
+            s.append([])
+
+        time=analysis.verdict(obs.verdict).time_obtained
+        t[valuations.index(final_dict)].append(datetime.strptime(time,'%Y-%m-%dT%H:%M:%S.%f'))
+        s[valuations.index(final_dict)].append(severity_function(obs))
+
+        """
+        delete this when the other one works
         n=len(assignments)
         for a in assignments:
             if a.id not in ids:
@@ -43,21 +58,26 @@ def plot_severity_vs_time(f,severity_function=analysis.verdict_severity):
             t[ids.index(a.id)].append(datetime.strptime(time,'%Y-%m-%dT%H:%M:%S.%f'))
             s[ids.index(a.id)].append(severity_function(obs))
             #print(datetime.strptime(time,'%Y-%m-%dT%H:%M:%S.%f'), obs.verdict_severity())
+        """
 
     """
     #this part is for plotting multiple figures into the same file
     fig, ax = plt.subplots(nrows=1,ncols=len(ids))
     for i in ids:
         ind=ids.index(i)
-        ax[ind].plot(t[ind] ,s[ind],'.')"""
+        ax[ind].plot(t[ind] ,s[ind],'.')
+    """
+    print(valuations)
+    print(t)
+    print(s)
 
-    for i in ids:
-        ind=ids.index(i)
+    for v in valuations:
+        ind=valuations.index(v)
         plt.plot(t[ind],s[ind],'.')
         plt.xlabel('time verdict was obtained')
         plt.ylabel('verdict severity')
         plt.margins(0.05)
-        plt.savefig('plot_%d.pdf'%i)
+        plt.savefig('plot_%d.pdf'%ind)
         plt.close() #move after loop to get a plot of all dots on the same graph (coloured by assignment)
 
 def main():
@@ -78,7 +98,7 @@ def main():
     print(function_calls3[0].http_request)
 
     verdict1=analysis.verdict(1)
-    atom1s=verdict1.get_atom().get_structure()
+    atom1s=verdict1.get_collapsing_atom().get_structure()
     print(atom1s)
 
     obs=analysis.observation(id=1)
@@ -93,7 +113,7 @@ def main():
 
     print(len(analysis.get_atom_list(1)))
     call1=analysis.function_call(1)
-    obs_fail=call1.first_observation_fail()
+    obs_fail=call1.get_falsifying_observation()
     if obs_fail!=None:
         print(obs_fail.id)
 
