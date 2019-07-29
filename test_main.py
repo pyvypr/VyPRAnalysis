@@ -7,7 +7,7 @@ import pickle
 
 def plot_severity_vs_time(f,severity_function=analysis.verdict_severity):
     #get a function call of the given function such that there was a failure during the call
-    call=f.get_calls_with_failed_verdict()[0]
+    call=f.get_calls_with_verdict(0)[0]
 
     #find the first observation wrt verdicts that caused the failure
     failed_observation=call.get_falsifying_observation()
@@ -73,7 +73,7 @@ def plot_severity_vs_time(f,severity_function=analysis.verdict_severity):
 
     for v in valuations:
         ind=valuations.index(v)
-        plt.plot(t[ind],s[ind],'.')
+        plt.plot(t[ind],s[ind],'ob')
         plt.xlabel('time verdict was obtained')
         plt.ylabel('verdict severity')
         plt.margins(0.05)
