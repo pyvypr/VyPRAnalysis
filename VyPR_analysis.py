@@ -53,10 +53,14 @@ class function:
     it is initialized by its name or id
     as f=function(id=1) or f=function(fully_qualified_name=name)"""
 
-    def __init__(self, id=None, fully_qualified_name=None):
+    def __init__(self, id=None, fully_qualified_name=None, property=None):
         if id==None and fully_qualified_name==None:
             raise ValueError('id or name of function needed as argument')
-        if fully_qualified_name!=None:
+        if id!=None and fully_qualified_name!=None and property!=None:
+            self.id=id
+            self.fully_qualified_name=fully_qualified_name
+            self.property=property
+        elif fully_qualified_name!=None:
             self.fully_qualified_name=fully_qualified_name
             str=urllib2.urlopen(server_url+'client/get_function_by_name/%s/' % fully_qualified_name).read()
             if str=="None": raise ValueError('no functions named %s'%fully_qualified_name)
