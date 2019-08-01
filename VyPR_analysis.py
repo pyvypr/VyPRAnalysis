@@ -17,7 +17,10 @@ from control_flow_graph.construction import *
 
 server_url=json.load(open('config.json'))["verdict_server_url"]
 def set_server(given_url):
-    """server_url is a global variable which can be changed by passing a string to the set_server() function"""
+    """
+    server_url is a global variable which can be changed
+    by passing a string to the set_server() function
+    """
     global server_url
     server_url=given_url
 
@@ -54,8 +57,13 @@ class function:
     as f=function(id=1) or f=function(fully_qualified_name=name)"""
 
     def __init__(self, id=None, fully_qualified_name=None, property=None):
+
+        #check if any of the arguments that identify a function is given
         if id==None and fully_qualified_name==None:
             raise ValueError('id or name of function needed as argument')
+
+        #if all the arguments are given, there is no need to connect to the db
+        #if just the name or the id are given, then get the unknown ones from the db
         if id!=None and fully_qualified_name!=None and property!=None:
             self.id=id
             self.fully_qualified_name=fully_qualified_name
@@ -85,7 +93,7 @@ class function:
         if request==None:
             str=urllib2.urlopen(server_url+'client/list_function_calls_f/%s/'% self.fully_qualified_name).read()
         else:
-            str=urllib2.urlopen(server_url+'client/list_function_calls_http_id/%d/%d/'%(request.id,self.id)).read()
+            str=urllib2.urlopen(server_url+'client/list_function_calls_http_id/%d/%d/'%(request,self.id)).read()
         if (str=="None"): raise ValueError('no such calls')
         calls_dict=json.loads(str)
         calls_list=[]
@@ -197,10 +205,10 @@ class function_call:
         return observation(id=d["id"],instrumentation_point=d["instrumentation_point"],verdict=d["verdict"],observed_value=d["observed_value"],atom_index=d["atom_index"],previous_condition=d["previous_condition"])
 
     def get_verdicts(self,value=None):
-        if value=="None":
+        if value==None:
             str=urllib2.urlopen(server_url+'client/list_verdicts_of_call/%d/'% self.id).read()
         else:
-            str=urllib2.urlopen(server_url+'client/list_verdicts_with_value_of_call/%d/%d/'% self.id,value).read()
+            str=urllib2.urlopen(server_url+'client/list_verdicts_with_value_of_call/%d/%d/'% (self.id,value)).read()
         if str=="None": print('no verdicts for given function call')
         verdicts_dict=json.loads(str)
         verdicts_list=[]
@@ -244,6 +252,15 @@ class verdict:
             self.collapsing_atom=collapsing_atom
 
     def get_property_hash(self):
+        """
+        initialise the binding using the attribute that stores its id
+        initialise the function using the attribute of binding that stores function id
+        finally, get the property which is an attribute of function
+        """
+
+        #it's possible to define a separate function for each of these steps
+        #the code would be more straightforward then
+        #or a database query that returns the property direcrtly (more efficient)
         return function(binding(self.binding).function).property
 
     def get_collapsing_atom(self):
@@ -566,6 +583,7 @@ class intersection:
         else:
             self.condition_sequence_string=condition_sequence_string
 
+
 def write_scfg(scfg_object,file_name):
     graph = Digraph()
     graph.attr("graph", splines="true", fontsize="10")
@@ -576,6 +594,8 @@ def write_scfg(scfg_object,file_name):
             graph.edge(str(id(vertex)),	str(id(edge._target_state)),"%s - %s - path length = %s" % (str(edge._operates_on) if not(type(edge._operates_on[0]) is ast.Print) else "print stmt",edge._condition,str(edge._target_state._path_length)))
     graph.render(file_name)
     print("Writing SCFG to file '%s'." % file_name)
+
+
 
 def list_observations():
     str=urllib2.urlopen(server_url+'client/list_observations/').read()
