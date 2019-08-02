@@ -17,7 +17,10 @@ from control_flow_graph.construction import *
 
 server_url=json.load(open('config.json'))["verdict_server_url"]
 def set_server(given_url):
-    """server_url is a global variable which can be changed by passing a string to the set_server() function"""
+    """
+    server_url is a global variable which can be changed
+    by passing a string to the set_server() function
+    """
     global server_url
     server_url=given_url
 
@@ -53,12 +56,22 @@ class function:
     it is initialized by its name or id
     as f=function(id=1) or f=function(fully_qualified_name=name)"""
 
-    def __init__(self, id=None, fully_qualified_name=None):
+    def __init__(self, id=None, fully_qualified_name=None, property=None):
+
+        #check if any of the arguments that identify a function is given
         if id==None and fully_qualified_name==None:
             raise ValueError('id or name of function needed as argument')
-        if fully_qualified_name!=None:
+
+        #if all the arguments are given, there is no need to connect to the db
+        #if just the name or the id are given, then get the unknown ones from the db
+        if id!=None and fully_qualified_name!=None and property!=None:
+            self.id=id
+            self.fully_qualified_name=fully_qualified_name
+            self.property=property
+        elif fully_qualified_name!=None:
             self.fully_qualified_name=fully_qualified_name
             str=urllib2.urlopen(server_url+'client/get_function_by_name/%s/' % fully_qualified_name).read()
+            if str=="None": raise ValueError('no functions named %s'%fully_qualified_name)
             str=str[1:-1]
             f_dict=json.loads(str)
             self.id=f_dict["id"]
@@ -66,6 +79,7 @@ class function:
         elif id!=None:
             self.id=id
             str=urllib2.urlopen(server_url+'client/get_function_by_id/%d/' % id).read()
+            if str=="None": raise ValueError('no functions with given ID')
             str=str[1:-1]
             f_dict=json.loads(str)
             self.fully_qualified_name=f_dict["fully_qualified_name"]
@@ -79,7 +93,8 @@ class function:
         if request==None:
             str=urllib2.urlopen(server_url+'client/list_function_calls_f/%s/'% self.fully_qualified_name).read()
         else:
-            str=urllib2.urlopen(server_url+'client/list_function_calls_http_id/%d/%d/'%(request.id,self.id)).read()
+            str=urllib2.urlopen(server_url+'client/list_function_calls_http_id/%d/%d/'%(request,self.id)).read()
+        if (str=="None"): raise ValueError('no such calls')
         calls_dict=json.loads(str)
         calls_list=[]
         for call in calls_dict:
@@ -87,8 +102,9 @@ class function:
             calls_list.append(call_class)
         return calls_list
 
-    def get_calls_with_failed_verdict(self):
-        str=urllib2.urlopen(server_url+'client/list_function_calls_failed_verdict/%d/'%(self.id)).read()
+    def get_calls_with_verdict(self, verdict_value):
+        str=urllib2.urlopen(server_url+'client/list_function_calls_with_verdict/%d/%d/'%(self.id,verdict_value)).read()
+        if str=="None":raise ValueError('no such calls')
         calls_dict=json.loads(str)
         calls_list=[]
         for call in calls_dict:
@@ -165,6 +181,7 @@ class function_call:
         self.id=id
         if function==None or time_of_call==None or http_request==None:
             str=urllib2.urlopen(server_url+'client/get_call_by_id/%d/' % id).read()
+            if str=="None": raise ValueError('no function calls with given ID')
             str=str[1:-1]
             dict=json.loads(str)
             self.function=dict["function"]
@@ -187,8 +204,11 @@ class function_call:
         d=json.loads(str)
         return observation(id=d["id"],instrumentation_point=d["instrumentation_point"],verdict=d["verdict"],observed_value=d["observed_value"],atom_index=d["atom_index"],previous_condition=d["previous_condition"])
 
-    def get_verdicts(self):
-        str=urllib2.urlopen(server_url+'client/list_verdicts_of_call/%d/'% self.id).read()
+    def get_verdicts(self,value=None):
+        if value==None:
+            str=urllib2.urlopen(server_url+'client/list_verdicts_of_call/%d/'% self.id).read()
+        else:
+            str=urllib2.urlopen(server_url+'client/list_verdicts_with_value_of_call/%d/%d/'% (self.id,value)).read()
         if str=="None": print('no verdicts for given function call')
         verdicts_dict=json.loads(str)
         verdicts_list=[]
@@ -216,6 +236,7 @@ class verdict:
         self.id=id
         if binding==None:
             str=urllib2.urlopen(server_url+'client/get_verdict_by_id/%d/' % self.id).read()
+            if str=="None": raise ValueError('no verdicts with given ID')
             str=str[1:-1]
             d=json.loads(str)
             self.binding=d["binding"]
@@ -230,8 +251,20 @@ class verdict:
             self.function_call=function_call
             self.collapsing_atom=collapsing_atom
 
+    def get_property_hash(self):
+        """
+        initialise the binding using the attribute that stores its id
+        initialise the function using the attribute of binding that stores function id
+        finally, get the property which is an attribute of function
+        """
+
+        #it's possible to define a separate function for each of these steps
+        #the code would be more straightforward then
+        #or a database query that returns the property direcrtly (more efficient)
+        return function(binding(self.binding).function).property
+
     def get_collapsing_atom(self):
-        return atom(index_in_atoms=self.collapsing_atom)
+        return atom(index_in_atoms=self.collapsing_atom,property_hash=self.get_property_hash())
 
 def list_verdicts_with_value(value):
 
@@ -263,14 +296,17 @@ def list_verdicts_dict_with_value(value):
 
 
 class http_request:
-    """class http_request represents the http_request table in the database
-    initialized as http_request(id=1) or http_request(time_of_request=t)"""
+    """
+    class http_request represents the http_request table in the database
+    initialized as http_request(id=1) or http_request(time_of_request=t)
+    """
 
     def __init__(self, id=None, time_of_request=None):
         if id!=None:
             self.id=id
             if time_of_request==None:
                 str=urllib2.urlopen(server_url+'client/get_http_by_id/%d/' % self.id).read()
+                if str=="None": raise ValueError('no HTTP requests in the database with given ID')
                 str=str[1:-1]
                 d=json.loads(str)
                 self.time_of_request=d["time_of_request"]
@@ -279,6 +315,7 @@ class http_request:
         elif time_of_request!=None:
             self.time_of_request=time_of_request
             str=urllib2.urlopen(server_url+'client/get_http_by_time/%s/' % self.time_of_request).read()
+            if str=="None": raise ValueError('no HTTP requests in the database with given time')
             str=str[1:-1]
             d=json.loads(str)
             self.id=d["id"]
@@ -297,6 +334,8 @@ class http_request:
             calls_list.append(call_class)
         return calls_list
 
+
+
 class atom:
     """
     initialized as either atom(id=n) or atom(index_in_atoms=n)
@@ -313,21 +352,23 @@ class atom:
             if id!=None:
                 self.id=id
                 str=urllib2.urlopen(server_url+'client/get_atom_by_id/%d/' % self.id).read()
+                if str=="None": raise ValueError('no atoms with given ID')
                 str=str[1:-1]
                 d=json.loads(str)
                 self.property_hash=d["property_hash"]
                 self.serialised_structure=d["serialised_structure"]
                 self.index_in_atoms=d["index_in_atoms"]
-            elif index_in_atoms!=None:
+            elif index_in_atoms!=None and property_hash!=None:
                 self.index_in_atoms=index_in_atoms
-                str=urllib2.urlopen(server_url+'client/get_atom_by_index/%d/' % self.index_in_atoms).read()
+                self.property_hash=property_hash
+                str=urllib2.urlopen(server_url+'client/get_atom_by_index_and_property/%d/%s/' % (self.index_in_atoms,self.property_hash)).read()
+                if str=="None": raise ValueError('no such atoms')
                 str=str[1:-1]
                 d=json.loads(str)
-                self.property_hash=d["property_hash"]
                 self.serialised_structure=d["serialised_structure"]
                 self.id=d["id"]
             else:
-                raise ValueError('either id or index_in_atoms argument needed to initialize object')
+                raise ValueError('either id or index_in_atoms and property arguments needed to initialize object')
     def get_structure(self):
         """
         atom.get_structure() returns the serialised structure of the atom in decoded format
@@ -343,7 +384,7 @@ def get_atom_list(verdict_value):
 
     str=urllib2.urlopen(server_url+'client/list_atoms_where_verdict/%d/'% verdict_value).read()
     if str=="None":
-        print('there are no verdicts with given value')
+        raise ValueError('there are no verdicts with given value')
         return
     atoms_dict=json.loads(str)
     atoms_list=[]
@@ -391,6 +432,8 @@ class instrumentation_point:
             obs_list.append(obs_class)
         return obs_list
 
+
+
 class observation:
 
     def __init__(self,id,instrumentation_point=None,verdict=None,observed_value=None,atom_index=None,previous_condition=None):
@@ -432,7 +475,7 @@ class observation:
         return assignment_dict
 
     def verdict_severity(self):
-        formula=atom(index_in_atoms=self.atom_index).get_structure()
+        formula=verdict(self.verdict).get_collapsing_atom().get_structure()
         interval=formula._interval
         lower=interval[0]
         upper=interval[1]
@@ -540,6 +583,7 @@ class intersection:
         else:
             self.condition_sequence_string=condition_sequence_string
 
+
 def write_scfg(scfg_object,file_name):
     graph = Digraph()
     graph.attr("graph", splines="true", fontsize="10")
@@ -551,10 +595,12 @@ def write_scfg(scfg_object,file_name):
     graph.render(file_name)
     print("Writing SCFG to file '%s'." % file_name)
 
+
+
 def list_observations():
     str=urllib2.urlopen(server_url+'client/list_observations/').read()
     if str=="None":
-        print('no observations')
+        raise ValueError('no observations')
         return
     obs_dict=json.loads(str)
     obs_list=[]

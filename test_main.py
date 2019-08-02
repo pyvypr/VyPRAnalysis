@@ -7,7 +7,7 @@ import pickle
 
 def plot_severity_vs_time(f,severity_function=analysis.verdict_severity):
     #get a function call of the given function such that there was a failure during the call
-    call=f.get_calls_with_failed_verdict()[0]
+    call=f.get_calls_with_verdict(0)[0]
 
     #find the first observation wrt verdicts that caused the failure
     failed_observation=call.get_falsifying_observation()
@@ -44,22 +44,6 @@ def plot_severity_vs_time(f,severity_function=analysis.verdict_severity):
         t[valuations.index(final_dict)].append(datetime.strptime(time,'%Y-%m-%dT%H:%M:%S.%f'))
         s[valuations.index(final_dict)].append(severity_function(obs))
 
-        """
-        delete this when the other one works
-        n=len(assignments)
-        for a in assignments:
-            if a.id not in ids:
-                ids.append(a.id)
-                t.append([])
-                s.append([])
-            time=analysis.verdict(obs.verdict).time_obtained
-            #print(time)
-            #t.append(matplotlib.dates.date2num(datetime.strptime(time,'%Y-%m-%dT%H:%M:%S.%f')))
-            t[ids.index(a.id)].append(datetime.strptime(time,'%Y-%m-%dT%H:%M:%S.%f'))
-            s[ids.index(a.id)].append(severity_function(obs))
-            #print(datetime.strptime(time,'%Y-%m-%dT%H:%M:%S.%f'), obs.verdict_severity())
-        """
-
     """
     #this part is for plotting multiple figures into the same file
     fig, ax = plt.subplots(nrows=1,ncols=len(ids))
@@ -67,13 +51,10 @@ def plot_severity_vs_time(f,severity_function=analysis.verdict_severity):
         ind=ids.index(i)
         ax[ind].plot(t[ind] ,s[ind],'.')
     """
-    print(valuations)
-    print(t)
-    print(s)
 
     for v in valuations:
         ind=valuations.index(v)
-        plt.plot(t[ind],s[ind],'.')
+        plt.plot(t[ind],s[ind],'ob')
         plt.xlabel('time verdict was obtained')
         plt.ylabel('verdict severity')
         plt.margins(0.05)
@@ -85,7 +66,7 @@ def main():
     f1=analysis.function(fully_qualified_name='app.routes.paths_branching_test')
     f2=analysis.function(id=1)
     function_calls1=f1.get_calls()
-    function_calls2=f2.get_calls()
+    function_calls2=f2.get_calls(1)
     print(len(function_calls1))
     print(len(function_calls2))
 
@@ -94,7 +75,7 @@ def main():
     req1=analysis.http_request(time_of_request=req.time_of_request)
     print(req1.id)
 
-    function_calls3=f2.get_calls(req1)
+    function_calls3=f2.get_calls(req1.id)
     print(function_calls3[0].http_request)
 
     verdict1=analysis.verdict(1)
