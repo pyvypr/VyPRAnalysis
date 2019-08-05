@@ -4,6 +4,7 @@ import urllib2
 from datetime import datetime
 import pickle
 from graphviz import Digraph
+from pprint import pprint
 #import matplotlib.pyplot as plt
 #from VyPR import monitor_synthesis
 #from flask import jsonify
@@ -12,6 +13,7 @@ import ast
 sys.path.append("VyPR/")
 from monitor_synthesis.formula_tree import *
 from control_flow_graph.construction import *
+from path_reconstruction import edges_from_condition_sequence, deserialise_condition
 #from control_flow_graph.parse_tree import ParseTree
 
 
@@ -93,7 +95,7 @@ class function:
         if request==None:
             str=urllib2.urlopen(server_url+'client/list_function_calls_f/%s/'% self.fully_qualified_name).read()
         else:
-            str=urllib2.urlopen(server_url+'client/list_function_calls_http_id/%d/%d/'%(request,self.id)).read()
+            str=urllib2.urlopen(server_url+'client/list_function_calls_http_id/%d/%d/'%(request.id,self.id)).read()
         if (str=="None"): raise ValueError('no such calls')
         calls_dict=json.loads(str)
         calls_list=[]
@@ -205,11 +207,14 @@ class function_call:
         return observation(id=d["id"],instrumentation_point=d["instrumentation_point"],verdict=d["verdict"],observed_value=d["observed_value"],atom_index=d["atom_index"],previous_condition=d["previous_condition"])
 
     def get_verdicts(self,value=None):
+
         if value==None:
             str=urllib2.urlopen(server_url+'client/list_verdicts_of_call/%d/'% self.id).read()
         else:
             str=urllib2.urlopen(server_url+'client/list_verdicts_with_value_of_call/%d/%d/'% (self.id,value)).read()
+
         if str=="None": print('no verdicts for given function call')
+
         verdicts_dict=json.loads(str)
         verdicts_list=[]
         for v in verdicts_dict:
@@ -608,3 +613,73 @@ def list_observations():
         obs_class=observation(o["id"],o["instrumentation_point"],o["verdict"],o["observed_value"],o["atom_index"],o["previous_condition"])
         obs_list.append(obs_class)
     return obs_list
+
+
+def get_parametric_path(obs_id_list,instrumentation_point_id):
+    #instrumentation_point optional -> get it from an observation in the list??
+    for id in obs_id_list:
+        obs=observation(id)
+        if obs.instrumentation_point!=instrumentation_point_id:
+            raise ValueError('the observations must have the same instrumentation point')
+
+    data1={"observation_ids":obs_id_list, "instrumentation_point_id":instrumentation_point_id}
+    req=requests.post(url=server_url+'get_parametric_path/',data=json.dumps(data1))
+
+    return req.text
+
+
+def get_intersection_from_observations(function_name,obs_id_list,inst_point):
+
+    f=function(fully_qualified_name=function_name)
+    subchain_text=get_parametric_path(obs_id_list,inst_point)
+    subchain_dict=json.loads(subchain_text)
+    pprint(subchain_dict)
+
+    paths=[]
+    seq=subchain_dict["intersection_condition_sequence"]
+
+    for id in obs_id_list:
+
+        subchain=[]
+        ind=0
+
+        while ind<len(seq):
+            if seq[ind]=="parameter":
+                cond=((subchain_dict["parameter_maps"])["0"])[str(obs_id_list.index(id))]
+                for cond_elem in cond:
+                    print(cond_elem)
+                    subchain.append(deserialise_condition(cond_elem))
+            else:
+                subchain.append(seq[ind])
+            ind+=1
+
+        subchain = subchain[1:]
+        scfg=f.get_graph()
+        ipoint=instrumentation_point(inst_point)
+        path=edges_from_condition_sequence(scfg,subchain,ipoint.reaching_path_length)
+        paths.append(path)
+
+    intersection_path=edges_from_condition_sequence(scfg,seq[1:],ipoint.reaching_path_length)
+    edit_code(intersection_path)
+    print("------------------------------------------------")
+    print(seq)
+    return intersection_path
+
+
+def edit_code(path):
+    condition_lines=set()
+    #doing this as a set to avoid highlighting the same lines multiple times
+    for path_elem in path:
+        if isinstance(path_elem,CFGVertex):
+            condition_lines.add(path_elem._structure_obj.lineno)
+
+    file=open("routes.py.inst","r")
+    lines=file.readlines()
+    for line_ind in condition_lines:
+        lines[line_ind-1]='*'+lines[line_ind-1]
+
+    for line in lines:
+        print(line.rstrip())
+    file=open("changed_routes.py.inst","w")
+    file.writelines(lines)
+    file.close()
