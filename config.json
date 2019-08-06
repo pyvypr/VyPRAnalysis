@@ -1,4 +1,0 @@
-{
-  "verdict_server_url": "http://127.0.0.1:9001/",
-  "monitored_service" : "/servers/SampleWebService/"
-}
