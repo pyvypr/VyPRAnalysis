@@ -12,5 +12,5 @@ from pprint import pprint
 # VyPRAnalysis imports
 from VyPRAnalysis import server_url
 
-from base_classes import *
-from operations import *
+from VyPRAnalysis.orm.base_classes import *
+from VyPRAnalysis.orm.operations import *
