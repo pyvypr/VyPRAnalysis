@@ -10,11 +10,11 @@ import ast
 # VyPRAnalysis imports
 from VyPRAnalysis import server_url
 from VyPRAnalysis.utils import get_qualifier_subsequence
+from VyPRAnalysis.path_reconstruction import edges_from_condition_sequence, deserialise_condition
 
 # VyPR imports
 from monitor_synthesis.formula_tree import LogicalNot
 from control_flow_graph.construction import CFG, CFGVertex, CFGEdge
-from path_reconstruction import edges_from_condition_sequence, deserialise_condition
 
 class function:
 
