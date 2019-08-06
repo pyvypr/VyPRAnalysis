@@ -1,56 +1,20 @@
-import json
-import requests
+"""
+Base ORM classes.
+"""
+
 import urllib2
-from datetime import datetime
-import pickle
-from graphviz import Digraph
-from pprint import pprint
-#import matplotlib.pyplot as plt
-#from VyPR import monitor_synthesis
-#from flask import jsonify
-import sys
+import json
+import os
 import ast
-sys.path.append("VyPR/")
-from monitor_synthesis.formula_tree import *
-from control_flow_graph.construction import *
-from path_reconstruction import edges_from_condition_sequence, deserialise_condition
-#from control_flow_graph.parse_tree import ParseTree
 
+# VyPRAnalysis imports
+from VyPRAnalysis import server_url
+from VyPRAnalysis.utils import get_qualifier_subsequence
+from VyPRAnalysis.path_reconstruction import edges_from_condition_sequence, deserialise_condition
 
-server_url=json.load(open('config.json'))["verdict_server_url"]
-def set_server(given_url):
-    """
-    server_url is a global variable which can be changed
-    by passing a string to the set_server() function
-    """
-    global server_url
-    server_url=given_url
-
-#from VyPR-server/app/paths.py
-def get_qualifier_subsequence(function_qualifier):
-	"""
-	Given a fully qualified function name, iterate over it and find the file
-	in which the function is defined (this is the entry in the qualifier chain
-	before the one that causes an import error)/
-	"""
-
-	# tokenise the qualifier string so we have names and symbols
-	# the symbol used to separate two names tells us what the relationship is
-	# a/b means a is a directory and b is contained within it
-	# a.b means b is a member of a, so a is either a module or a class
-
-	tokens = []
-	last_position = 0
-	for (n, character) in enumerate(list(function_qualifier)):
-		if character in [".", "/"]:
-			tokens.append(function_qualifier[last_position:n])
-			tokens.append(function_qualifier[n])
-			last_position = n + 1
-		elif n == len(function_qualifier)-1:
-			tokens.append(function_qualifier[last_position:])
-
-	return tokens
-
+# VyPR imports
+from monitor_synthesis.formula_tree import LogicalNot
+from control_flow_graph.construction import CFG, CFGVertex, CFGEdge
 
 class function:
 
@@ -494,9 +458,6 @@ class observation:
     def get_instrumentation_point(self):
         return instrumentation_point(id=self.instrumentation_point)
 
-def verdict_severity(obs):
-    return obs.verdict_severity()
-
 class observation_assignment_pair:
     def __init__(self,observation,assignment):
         self.observation=observation
@@ -587,99 +548,3 @@ class intersection:
             self.condition_sequence_string=d["condition_sequence_string"]
         else:
             self.condition_sequence_string=condition_sequence_string
-
-
-def write_scfg(scfg_object,file_name):
-    graph = Digraph()
-    graph.attr("graph", splines="true", fontsize="10")
-    shape = "rectangle"
-    for vertex in scfg_object.vertices:
-        graph.node(str(id(vertex)), str(vertex._name_changed), shape=shape)
-        for edge in vertex.edges:
-            graph.edge(str(id(vertex)),	str(id(edge._target_state)),"%s - %s - path length = %s" % (str(edge._operates_on) if not(type(edge._operates_on[0]) is ast.Print) else "print stmt",edge._condition,str(edge._target_state._path_length)))
-    graph.render(file_name)
-    print("Writing SCFG to file '%s'." % file_name)
-
-
-
-def list_observations():
-    str=urllib2.urlopen(server_url+'client/list_observations/').read()
-    if str=="None":
-        raise ValueError('no observations')
-        return
-    obs_dict=json.loads(str)
-    obs_list=[]
-    for o in obs_dict:
-        obs_class=observation(o["id"],o["instrumentation_point"],o["verdict"],o["observed_value"],o["atom_index"],o["previous_condition"])
-        obs_list.append(obs_class)
-    return obs_list
-
-
-def get_parametric_path(obs_id_list,instrumentation_point_id):
-    #instrumentation_point optional -> get it from an observation in the list??
-    for id in obs_id_list:
-        obs=observation(id)
-        if obs.instrumentation_point!=instrumentation_point_id:
-            raise ValueError('the observations must have the same instrumentation point')
-
-    data1={"observation_ids":obs_id_list, "instrumentation_point_id":instrumentation_point_id}
-    req=requests.post(url=server_url+'get_parametric_path/',data=json.dumps(data1))
-
-    return req.text
-
-
-def get_intersection_from_observations(function_name,obs_id_list,inst_point):
-
-    f=function(fully_qualified_name=function_name)
-    subchain_text=get_parametric_path(obs_id_list,inst_point)
-    subchain_dict=json.loads(subchain_text)
-    pprint(subchain_dict)
-
-    paths=[]
-    seq=subchain_dict["intersection_condition_sequence"]
-
-    for id in obs_id_list:
-
-        subchain=[]
-        ind=0
-
-        while ind<len(seq):
-            if seq[ind]=="parameter":
-                cond=((subchain_dict["parameter_maps"])["0"])[str(obs_id_list.index(id))]
-                for cond_elem in cond:
-                    print(cond_elem)
-                    subchain.append(deserialise_condition(cond_elem))
-            else:
-                subchain.append(seq[ind])
-            ind+=1
-
-        subchain = subchain[1:]
-        scfg=f.get_graph()
-        ipoint=instrumentation_point(inst_point)
-        path=edges_from_condition_sequence(scfg,subchain,ipoint.reaching_path_length)
-        paths.append(path)
-
-    intersection_path=edges_from_condition_sequence(scfg,seq[1:],ipoint.reaching_path_length)
-    edit_code(intersection_path)
-    print("------------------------------------------------")
-    print(seq)
-    return intersection_path
-
-
-def edit_code(path):
-    condition_lines=set()
-    #doing this as a set to avoid highlighting the same lines multiple times
-    for path_elem in path:
-        if isinstance(path_elem,CFGVertex):
-            condition_lines.add(path_elem._structure_obj.lineno)
-
-    file=open("routes.py.inst","r")
-    lines=file.readlines()
-    for line_ind in condition_lines:
-        lines[line_ind-1]='*'+lines[line_ind-1]
-
-    for line in lines:
-        print(line.rstrip())
-    file=open("changed_routes.py.inst","w")
-    file.writelines(lines)
-    file.close()

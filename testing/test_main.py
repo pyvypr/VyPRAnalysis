@@ -1,4 +1,3 @@
-import VyPR_analysis as analysis
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -6,7 +5,11 @@ from datetime import datetime
 import pickle
 import argparse
 
-def plot_severity_vs_time(f,severity_function=analysis.verdict_severity):
+import sys
+sys.path.append("../")
+import VyPRAnalysis as analysis
+
+def plot_severity_vs_time(f,severity_function=analysis.utils.verdict_severity):
     #get a function call of the given function such that there was a failure during the call
     call=f.get_calls_with_verdict(0)[0]
 
@@ -44,14 +47,6 @@ def plot_severity_vs_time(f,severity_function=analysis.verdict_severity):
         time=analysis.verdict(obs.verdict).time_obtained
         t[valuations.index(final_dict)].append(datetime.strptime(time,'%Y-%m-%dT%H:%M:%S.%f'))
         s[valuations.index(final_dict)].append(severity_function(obs))
-
-    """
-    #this part is for plotting multiple figures into the same file
-    fig, ax = plt.subplots(nrows=1,ncols=len(ids))
-    for i in ids:
-        ind=ids.index(i)
-        ax[ind].plot(t[ind] ,s[ind],'.')
-    """
 
     for v in valuations:
         ind=valuations.index(v)

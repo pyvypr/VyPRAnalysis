@@ -1,9 +1,11 @@
+"""
+Module for path reconstruction in the analysis library.
+"""
+
 import pickle
 import sys
-sys.path.append("VyPR/")
-from control_flow_graph.construction import CFG, CFGVertex, CFGEdge
-from control_flow_graph.parse_tree import ParseTree
-from monitor_synthesis.formula_tree import LogicalNot
+
+from VyPR.monitor_synthesis.formula_tree import LogicalNot
 
 def edges_from_condition_sequence(scfg, path_subchain, instrumentation_point_path_length):
 	"""
@@ -156,7 +158,6 @@ def edges_from_condition_sequence(scfg, path_subchain, instrumentation_point_pat
 	#path.append(curr)
 
 	return path
-
 
 
 def deserialise_condition(serialised_condition):
