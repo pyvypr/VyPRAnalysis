@@ -75,9 +75,10 @@ def edit_code(path):
     condition_lines=set()
     #doing this as a set to avoid highlighting the same lines multiple times
     for path_elem in path:
-        if isinstance(path_elem,CFGVertex):
+        print(type(path_elem), CFGVertex)
+        if path_elem.__class__ is CFGVertex:
             condition_lines.add(path_elem._structure_obj.lineno)
-    
+
     print("condition lines", condition_lines)
 
     file=open("routes.py.inst","r")
