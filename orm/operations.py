@@ -8,7 +8,7 @@ from pprint import pprint
 
 
 # VyPR imports
-from VyPR.control_flow_graph.construction import CFGVertex
+from control_flow_graph.construction import CFGVertex
 
 # VyPRAnalysis imports
 from VyPRAnalysis import server_url
