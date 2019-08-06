@@ -4,6 +4,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from datetime import datetime
 import pickle
+import argparse
 
 def plot_severity_vs_time(f,severity_function=analysis.verdict_severity):
     #get a function call of the given function such that there was a failure during the call
@@ -62,7 +63,11 @@ def plot_severity_vs_time(f,severity_function=analysis.verdict_severity):
         plt.close() #move after loop to get a plot of all dots on the same graph (coloured by assignment)
 
 def main():
-    analysis.set_server("http://127.0.0.1:9005/")
+    parse = argparse.ArgumentParser(description="Testing script for VyPRAnalysis.")
+    parse.add_argument('--port', type=int, help='The port number on which to connect to the verdict server.')
+    parse.add_argument('--service-dir', type=str, help='The absolute directory in which to find the monitored service locally.')
+    args = parse.parse_args()
+    analysis.set_server("http://127.0.0.1:%i/" % args.port)
     f1=analysis.function(fully_qualified_name='app.routes.paths_branching_test')
     f2=analysis.function(id=1)
     function_calls1=f1.get_calls()
