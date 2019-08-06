@@ -68,10 +68,13 @@ def main():
     parse.add_argument('--service-dir', type=str, help='The absolute directory in which to find the monitored service locally.')
     args = parse.parse_args()
     analysis.set_server("http://127.0.0.1:%i/" % args.port)
-    f1=analysis.function(fully_qualified_name='app.routes.paths_branching_test')
+
+    #print(analysis.get_parametric_path([6,7,8],1))
+    print(analysis.get_intersection_from_observations('app.routes.paths_branching_test',[6,7,8],1))
+    """f1=analysis.function(fully_qualified_name='app.routes.paths_branching_test')
     f2=analysis.function(id=1)
     function_calls1=f1.get_calls()
-    function_calls2=f2.get_calls(1)
+    function_calls2=f2.get_calls(http_request(1))
     print(len(function_calls1))
     print(len(function_calls2))
 
@@ -80,7 +83,7 @@ def main():
     req1=analysis.http_request(time_of_request=req.time_of_request)
     print(req1.id)
 
-    function_calls3=f2.get_calls(req1.id)
+    function_calls3=f2.get_calls(req1)
     print(function_calls3[0].http_request)
 
     verdict1=analysis.verdict(1)
@@ -111,7 +114,7 @@ def main():
     analysis.write_scfg(f1.get_graph(),"graph_file")
     graphfile.close()
 
-    plot_severity_vs_time(analysis.function(1))
+    plot_severity_vs_time(analysis.function(1))"""
 
 if __name__ == "__main__":
     main()
