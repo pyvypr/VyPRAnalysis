@@ -11,7 +11,7 @@ from pprint import pprint
 from control_flow_graph.construction import CFGVertex
 
 # VyPRAnalysis imports
-from VyPRAnalysis import server_url
+from VyPRAnalysis import get_server
 from VyPRAnalysis.orm.base_classes import function, observation, instrumentation_point
 from VyPRAnalysis.path_reconstruction import edges_from_condition_sequence, deserialise_condition
 
@@ -23,7 +23,7 @@ def get_parametric_path(obs_id_list,instrumentation_point_id):
             raise ValueError('the observations must have the same instrumentation point')
 
     data1={"observation_ids":obs_id_list, "instrumentation_point_id":instrumentation_point_id}
-    req=requests.post(url=server_url+'get_parametric_path/',data=json.dumps(data1))
+    req=requests.post(url=get_server()+'get_parametric_path/',data=json.dumps(data1))
 
     return req.text
 

@@ -8,7 +8,7 @@ import os
 import ast
 
 # VyPRAnalysis imports
-from VyPRAnalysis import server_url
+from VyPRAnalysis import get_server
 from VyPRAnalysis.utils import get_qualifier_subsequence
 from VyPRAnalysis.path_reconstruction import edges_from_condition_sequence, deserialise_condition
 
@@ -36,7 +36,7 @@ class function:
             self.property=property
         elif fully_qualified_name!=None:
             self.fully_qualified_name=fully_qualified_name
-            str=urllib2.urlopen(server_url+'client/get_function_by_name/%s/' % fully_qualified_name).read()
+            str=urllib2.urlopen(get_server()+'client/get_function_by_name/%s/' % fully_qualified_name).read()
             if str=="None": raise ValueError('no functions named %s'%fully_qualified_name)
             str=str[1:-1]
             f_dict=json.loads(str)
@@ -44,7 +44,7 @@ class function:
             self.property=f_dict["property"]
         elif id!=None:
             self.id=id
-            str=urllib2.urlopen(server_url+'client/get_function_by_id/%d/' % id).read()
+            str=urllib2.urlopen(get_server()+'client/get_function_by_id/%d/' % id).read()
             if str=="None": raise ValueError('no functions with given ID')
             str=str[1:-1]
             f_dict=json.loads(str)
@@ -57,9 +57,9 @@ class function:
         function calls which happened during the given http_request"""
 
         if request==None:
-            str=urllib2.urlopen(server_url+'client/list_function_calls_f/%s/'% self.fully_qualified_name).read()
+            str=urllib2.urlopen(get_server()+'client/list_function_calls_f/%s/'% self.fully_qualified_name).read()
         else:
-            str=urllib2.urlopen(server_url+'client/list_function_calls_http_id/%d/%d/'%(request.id,self.id)).read()
+            str=urllib2.urlopen(get_server()+'client/list_function_calls_http_id/%d/%d/'%(request.id,self.id)).read()
         if (str=="None"): raise ValueError('no such calls')
         calls_dict=json.loads(str)
         calls_list=[]
@@ -69,7 +69,7 @@ class function:
         return calls_list
 
     def get_calls_with_verdict(self, verdict_value):
-        str=urllib2.urlopen(server_url+'client/list_function_calls_with_verdict/%d/%d/'%(self.id,verdict_value)).read()
+        str=urllib2.urlopen(get_server()+'client/list_function_calls_with_verdict/%d/%d/'%(self.id,verdict_value)).read()
         if str=="None":raise ValueError('no such calls')
         calls_dict=json.loads(str)
         calls_list=[]
@@ -112,7 +112,7 @@ class property:
     def __init__(self, hash, serialised_structure=None):
         self.hash=hash
         if serialised_structure==None:
-            str=urllib2.urlopen(server_url+'client/get_property_by_hash/%s/' % hash).read()
+            str=urllib2.urlopen(get_server()+'client/get_property_by_hash/%s/' % hash).read()
             if str=="None":
                 raise ValueError('no such property')
             else:
@@ -126,7 +126,7 @@ class binding:
   def __init__(self,id,binding_space_index=None,function=None,binding_statement_lines=None):
     self.id=id
     if binding_space_index==None or function==None or binding_statement_lines==None:
-        str=urllib2.urlopen(server_url+'client/get_binding_by_id/%d/' % id).read()
+        str=urllib2.urlopen(get_server()+'client/get_binding_by_id/%d/' % id).read()
         if str=="None": raise ValueError('there is no binding with given id')
         str=str[1:-1]
         dict=json.loads(str)
@@ -146,7 +146,7 @@ class function_call:
     def __init__(self,id,function=None,time_of_call=None,http_request=None):
         self.id=id
         if function==None or time_of_call==None or http_request==None:
-            str=urllib2.urlopen(server_url+'client/get_call_by_id/%d/' % id).read()
+            str=urllib2.urlopen(get_server()+'client/get_call_by_id/%d/' % id).read()
             if str=="None": raise ValueError('no function calls with given ID')
             str=str[1:-1]
             dict=json.loads(str)
@@ -162,7 +162,7 @@ class function_call:
         """returns the first (wrt verdicts) observation that causes
         failure for the given call"""
 
-        str=urllib2.urlopen(server_url+'client/get_falsifying_observation_for_call/%d/' % self.id).read()
+        str=urllib2.urlopen(get_server()+'client/get_falsifying_observation_for_call/%d/' % self.id).read()
         if str=="None":
             print("no such objects")
             return
@@ -173,9 +173,9 @@ class function_call:
     def get_verdicts(self,value=None):
 
         if value==None:
-            str=urllib2.urlopen(server_url+'client/list_verdicts_of_call/%d/'% self.id).read()
+            str=urllib2.urlopen(get_server()+'client/list_verdicts_of_call/%d/'% self.id).read()
         else:
-            str=urllib2.urlopen(server_url+'client/list_verdicts_with_value_of_call/%d/%d/'% (self.id,value)).read()
+            str=urllib2.urlopen(get_server()+'client/list_verdicts_with_value_of_call/%d/%d/'% (self.id,value)).read()
 
         if str=="None": print('no verdicts for given function call')
 
@@ -187,7 +187,7 @@ class function_call:
         return verdicts_list
 
     def get_observations(self):
-        str=urllib2.urlopen(server_url+'client/list_observations_during_call/%d/'% self.id).read()
+        str=urllib2.urlopen(get_server()+'client/list_observations_during_call/%d/'% self.id).read()
         if str=="None": print('no observations for given function call')
         obs_dict=json.loads(str)
         obs_list=[]
@@ -204,7 +204,7 @@ class verdict:
     def __init__(self,id,binding=None,verdict=None,time_obtained=None,function_call=None,collapsing_atom=None):
         self.id=id
         if binding==None:
-            str=urllib2.urlopen(server_url+'client/get_verdict_by_id/%d/' % self.id).read()
+            str=urllib2.urlopen(get_server()+'client/get_verdict_by_id/%d/' % self.id).read()
             if str=="None": raise ValueError('no verdicts with given ID')
             str=str[1:-1]
             d=json.loads(str)
@@ -240,7 +240,7 @@ def list_verdicts_with_value(value):
     """called as list_verdicts(True) or list_verdicts(False)
     returns a list of objects 'class verdict' with the given value"""
 
-    str=urllib2.urlopen(server_url+'client/list_verdicts_with_value/%d/' % value).read()
+    str=urllib2.urlopen(get_server()+'client/list_verdicts_with_value/%d/' % value).read()
     if str=="None": raise ValueError('there are no such verdicts')
     verdicts_dict=json.loads(str)
     verdicts_list=[]
@@ -258,7 +258,7 @@ def list_verdicts_dict_with_value(value):
     from function_call - function, time_of_call
     from function - fully_qualified_name, property"""
 
-    str=urllib2.urlopen(server_url+'client/list_verdicts_function_property_by_value/%d/' % value).read()
+    str=urllib2.urlopen(get_server()+'client/list_verdicts_function_property_by_value/%d/' % value).read()
     if str=="None": raise ValueError('there are no such verdicts')
     d=json.loads(str)
     return d
@@ -274,7 +274,7 @@ class http_request:
         if id!=None:
             self.id=id
             if time_of_request==None:
-                str=urllib2.urlopen(server_url+'client/get_http_by_id/%d/' % self.id).read()
+                str=urllib2.urlopen(get_server()+'client/get_http_by_id/%d/' % self.id).read()
                 if str=="None": raise ValueError('no HTTP requests in the database with given ID')
                 str=str[1:-1]
                 d=json.loads(str)
@@ -283,7 +283,7 @@ class http_request:
                 self.time_of_request=time_of_request
         elif time_of_request!=None:
             self.time_of_request=time_of_request
-            str=urllib2.urlopen(server_url+'client/get_http_by_time/%s/' % self.time_of_request).read()
+            str=urllib2.urlopen(get_server()+'client/get_http_by_time/%s/' % self.time_of_request).read()
             if str=="None": raise ValueError('no HTTP requests in the database with given time')
             str=str[1:-1]
             d=json.loads(str)
@@ -292,7 +292,7 @@ class http_request:
             raise ValueError('either id or time_of_request argument required')
 
     def get_calls(self):
-        str=urllib2.urlopen(server_url+'client/list_function_calls_http/%d/'% self.id).read()
+        str=urllib2.urlopen(get_server()+'client/list_function_calls_http/%d/'% self.id).read()
         if str=="None":
             print('no calls during the given request')
             return
@@ -320,7 +320,7 @@ class atom:
         else:
             if id!=None:
                 self.id=id
-                str=urllib2.urlopen(server_url+'client/get_atom_by_id/%d/' % self.id).read()
+                str=urllib2.urlopen(get_server()+'client/get_atom_by_id/%d/' % self.id).read()
                 if str=="None": raise ValueError('no atoms with given ID')
                 str=str[1:-1]
                 d=json.loads(str)
@@ -330,7 +330,7 @@ class atom:
             elif index_in_atoms!=None and property_hash!=None:
                 self.index_in_atoms=index_in_atoms
                 self.property_hash=property_hash
-                str=urllib2.urlopen(server_url+'client/get_atom_by_index_and_property/%d/%s/' % (self.index_in_atoms,self.property_hash)).read()
+                str=urllib2.urlopen(get_server()+'client/get_atom_by_index_and_property/%d/%s/' % (self.index_in_atoms,self.property_hash)).read()
                 if str=="None": raise ValueError('no such atoms')
                 str=str[1:-1]
                 d=json.loads(str)
@@ -351,7 +351,7 @@ def get_atom_list(verdict_value):
     the idea is to list all atoms for which verdict is ture or false
     """
 
-    str=urllib2.urlopen(server_url+'client/list_atoms_where_verdict/%d/'% verdict_value).read()
+    str=urllib2.urlopen(get_server()+'client/list_atoms_where_verdict/%d/'% verdict_value).read()
     if str=="None":
         raise ValueError('there are no verdicts with given value')
         return
@@ -377,7 +377,7 @@ class instrumentation_point:
     def __init__(self,id,serialised_condition_sequence=None,reaching_path_length=None):
         self.id=id
         if serialised_condition_sequence==None or reaching_path_length==None:
-            str=urllib2.urlopen(server_url+'client/get_instrumentation_point_by_id/%d/' % self.id).read()
+            str=urllib2.urlopen(get_server()+'client/get_instrumentation_point_by_id/%d/' % self.id).read()
             if str=="None":
                 raise ValueError("there is no instrumentation point with given id")
             else:
@@ -390,7 +390,7 @@ class instrumentation_point:
             self.reaching_path_length=reaching_path_length
 
     def get_observations(self):
-        str=urllib2.urlopen(server_url+'client/list_observations_of_point/%d/'% self.id).read()
+        str=urllib2.urlopen(get_server()+'client/list_observations_of_point/%d/'% self.id).read()
         if str=="None":
             print('no observations for given instrumentation point')
             return
@@ -408,7 +408,7 @@ class observation:
     def __init__(self,id,instrumentation_point=None,verdict=None,observed_value=None,atom_index=None,previous_condition=None):
         self.id=id
         if instrumentation_point==None or verdict==None or observed_value==None or atom_index==None or previous_condition==None:
-            str=urllib2.urlopen(server_url+'client/get_observation_by_id/%d/' % self.id).read()
+            str=urllib2.urlopen(get_server()+'client/get_observation_by_id/%d/' % self.id).read()
             if str=="None": raise ValueError('there is no observation with given id')
             str=str[1:-1]
             d=json.loads(str)
@@ -425,7 +425,7 @@ class observation:
             self.previous_condition=previous_condition
 
     def get_assignments(self):
-        str=urllib2.urlopen(server_url+'client/list_assignments_given_observation/%d/'% self.id).read()
+        str=urllib2.urlopen(get_server()+'client/list_assignments_given_observation/%d/'% self.id).read()
         if str=="None": raise ValueError('no assignments paired with given observation')
         assignment_dict=json.loads(str)
         assignment_list=[]
@@ -435,7 +435,7 @@ class observation:
         return assignment_list
 
     def get_assignments_as_dictionary(self):
-        str=urllib2.urlopen(server_url+'/client/get_assignment_dict_from_observation/%d/'% self.id).read()
+        str=urllib2.urlopen(get_server()+'/client/get_assignment_dict_from_observation/%d/'% self.id).read()
         if str=="None": raise ValueError('no assignments paired with given observation')
         assignment_dict=json.loads(str)
         for a in assignment_dict:
@@ -467,7 +467,7 @@ class assignment:
     def __init__(self,id,variable=None,value=None,type=None):
         self.id=id
         if variable==None or value==None or type==None:
-            str=urllib2.urlopen(server_url+'client/get_assignment_by_id/%d/' % self.id).read()
+            str=urllib2.urlopen(get_server()+'client/get_assignment_by_id/%d/' % self.id).read()
             if str=="None": raise ValueError('there is no assignment with given id')
             str=str[1:-1]
             d=json.loads(str)
@@ -483,7 +483,7 @@ class path_condition_structure:
     def __init__(self,id,serialised_condition=None):
         self.id=id
         if serialised_condition==None:
-            str=urllib2.urlopen(server_url+'client/get_path_condition_structure_by_id/%d/' % self.id).read()
+            str=urllib2.urlopen(get_server()+'client/get_path_condition_structure_by_id/%d/' % self.id).read()
             if str=="None": raise ValueError('there is no path condition structure with given id')
             str=str[1:-1]
             d=json.loads(str)
@@ -495,7 +495,7 @@ class path_condition:
     def __init__(self,id,serialised_condition=None,next_path_condition=None,function_call=None):
         self.id=id
         if serialised_condition==None or next_path_condition==None or function_call==None:
-            str=urllib2.urlopen(server_url+'client/get_path_condition_by_id/%d/' % self.id).read()
+            str=urllib2.urlopen(get_server()+'client/get_path_condition_by_id/%d/' % self.id).read()
             if str=="None": raise ValueError('there is no path condition with given id')
             str=str[1:-1]
             d=json.loads(str)
@@ -511,7 +511,7 @@ class search_tree:
     def __init__(self,id,root_vertex=None,instrumentation_point=None):
         self.id=id
         if root_vertex==None or instrumentation_point==None:
-            str=urllib2.urlopen(server_url+'client/get_search_tree_by_id/%d/' % self.id).read()
+            str=urllib2.urlopen(get_server()+'client/get_search_tree_by_id/%d/' % self.id).read()
             if str=="None": raise ValueError('there is no search tree with given id')
             str=str[1:-1]
             d=json.loads(str)
@@ -525,7 +525,7 @@ class search_tree_vertex:
     def __init__(self,id,observation=None,intersection=None,parent_vertex=None):
         self.id=id
         if observation==None or intersection==None or parent_vertex==None:
-            str=urllib2.urlopen(server_url+'client/get_search_tree_vertex_by_id/%d/' % self.id).read()
+            str=urllib2.urlopen(get_server()+'client/get_search_tree_vertex_by_id/%d/' % self.id).read()
             if str=="None": raise ValueError('there is no search tree vertex with given id')
             str=str[1:-1]
             d=json.loads(str)
@@ -541,7 +541,7 @@ class intersection:
     def __init__(self,id,condition_sequence_string=None):
         self.id=id
         if condition_sequence_string==None:
-            str=urllib2.urlopen(server_url+'client/get_intersection_by_id/%d/' % self.id).read()
+            str=urllib2.urlopen(get_server()+'client/get_intersection_by_id/%d/' % self.id).read()
             if str=="None": raise ValueError('there is no intersection with given id')
             str=str[1:-1]
             d=json.loads(str)
