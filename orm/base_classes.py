@@ -6,6 +6,7 @@ import urllib2
 import json
 import os
 import ast
+import pickle
 
 # VyPRAnalysis imports
 from VyPRAnalysis import get_server
