@@ -5,7 +5,7 @@ Module for path reconstruction in the analysis library.
 import pickle
 import sys
 
-from monitor_synthesis.formula_tree import LogicalNot
+from VyPR.monitor_synthesis.formula_tree import LogicalNot
 
 def edges_from_condition_sequence(scfg, path_subchain, instrumentation_point_path_length):
 	"""
