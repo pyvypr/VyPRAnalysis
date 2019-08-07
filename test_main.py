@@ -6,7 +6,7 @@ import pickle
 import argparse
 
 import sys
-sys.path.append("../")
+sys.path.append("..")
 import VyPRAnalysis as analysis
 
 def plot_severity_vs_time(f,severity_function=analysis.utils.verdict_severity):
