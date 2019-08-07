@@ -6,7 +6,7 @@ Joshua Dawes - University of Manchester, CERN.
 """
 import sys
 
-sys.path.append("VyPR/")
+sys.path.append("VyPR")
 
 import json
 import requests
@@ -18,8 +18,17 @@ from pprint import pprint
 import sys
 import ast
 
+config_dict = None
+server_url = None
 
-server_url=json.load(open('config.json'))["verdict_server_url"]
+def set_config_file(config_file_name='config.json'):
+    """
+    Given config_file_name, read the configuration.
+    """
+    global config_dict, server_url
+    config_dict = json.loads(open(config_file_name))
+    server_url = config_dict["verdict_server_url"]
+
 def set_server(given_url):
     """
     server_url is a global variable which can be changed
@@ -27,6 +36,10 @@ def set_server(given_url):
     """
     global server_url
     server_url=given_url
+
+def get_server():
+	global server_url
+	return server_url
 
 
 """
