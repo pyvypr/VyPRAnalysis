@@ -57,12 +57,37 @@ def plot_severity_vs_time(f,severity_function=analysis.utils.verdict_severity):
         plt.savefig('plot_%d.pdf'%ind)
         plt.close() #move after loop to get a plot of all dots on the same graph (coloured by assignment)
 
+def plot_failed_verdicts_vs_function(function_ids=None):
+    verdicts=[]
+    if function_ids!=None:
+        for id in function_ids:
+            verdicts.append(len(analysis.function(id).get_verdicts(0)))
+    else:
+        f_list=analysis.list_functions()
+        function_ids=[]
+        for f in f_list:
+            function_ids.append(f.id)
+            verdicts.append(len(f.get_verdicts(0)))
+    plt.bar(function_ids,verdicts,width=0.3)
+    plt.xticks(function_ids)
+    plt.xlabel('Function/Property pair ID')
+    plt.ylabel('Violations generated')
+    plt.savefig('plot_verdicts.pdf')
+    plt.close()
+    return
+
 def main():
     parse = argparse.ArgumentParser(description="Testing script for VyPRAnalysis.")
     parse.add_argument('--port', type=int, help='The port number on which to connect to the verdict server.')
     parse.add_argument('--service-dir', type=str, help='The absolute directory in which to find the monitored service locally.')
     args = parse.parse_args()
     analysis.set_server("http://127.0.0.1:%i/" % args.port)
+
+    """f=analysis.function(99)
+    verdicts=f.get_verdicts(0)
+    print(len(analysis.list_functions()))
+    #plot_failed_verdicts_vs_function([100,103])
+    plot_failed_verdicts_vs_function()"""
 
     #print(analysis.get_parametric_path([6,7,8],1))
     print(analysis.get_intersection_from_observations('app.routes.paths_branching_test',[6,7,8],1))
