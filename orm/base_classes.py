@@ -6,6 +6,7 @@ import urllib2
 import json
 import os
 import ast
+import pickle
 
 # VyPRAnalysis imports
 from VyPRAnalysis import get_server
@@ -13,8 +14,7 @@ from VyPRAnalysis.utils import get_qualifier_subsequence
 from VyPRAnalysis.path_reconstruction import edges_from_condition_sequence, deserialise_condition
 
 # VyPR imports
-from monitor_synthesis.formula_tree import LogicalNot
-from control_flow_graph.construction import CFG, CFGVertex, CFGEdge
+import VyPR.control_flow_graph.construction
 
 class function:
 
@@ -104,7 +104,7 @@ class function:
     	# find the final function definition
     	function_def = filter(lambda entry : (type(entry) is ast.FunctionDef and entry.name == actual_function_name),current_step.body if type(current_step) is ast.ClassDef else current_step)[0]
     	# construct the scfg of the code inside the function
-    	scfg = CFG()
+    	scfg = VyPR.control_flow_graph.construction.CFG()
     	scfg_vertices = scfg.process_block(function_def.body)
     	return scfg
 

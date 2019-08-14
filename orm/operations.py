@@ -8,7 +8,7 @@ from pprint import pprint
 import urllib2
 
 # VyPR imports
-import control_flow_graph.construction
+import VyPR.control_flow_graph.construction
 
 # VyPRAnalysis imports
 from VyPRAnalysis import get_server
@@ -94,7 +94,7 @@ def edit_code(path):
     condition_lines=set()
     #doing this as a set to avoid highlighting the same lines multiple times
     for path_elem in path:
-        if type(path_elem) is control_flow_graph.construction.CFGVertex:
+        if type(path_elem) is VyPR.control_flow_graph.construction.CFGVertex:
             condition_lines.add(path_elem._structure_obj.lineno)
 
     print("condition lines", condition_lines)
