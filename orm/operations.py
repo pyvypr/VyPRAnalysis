@@ -5,7 +5,7 @@ Module that contains functions to perform operations with ORM classes.
 import requests
 import json
 from pprint import pprint
-
+import urllib2
 
 # VyPR imports
 import control_flow_graph.construction
@@ -32,8 +32,36 @@ def get_intersection_from_observations(function_name,obs_id_list,inst_point):
 
     f=function(fully_qualified_name=function_name)
     subchain_text=get_parametric_path(obs_id_list,inst_point)
+    print(subchain_text)
     subchain_dict=json.loads(subchain_text)
     pprint(subchain_dict)
+
+    paths=[]
+    seq=subchain_dict["intersection_condition_sequence"]
+    scfg=f.get_graph()
+    ipoint=instrumentation_point(inst_point)
+
+    intersection_path=edges_from_condition_sequence(
+        scfg,
+        map(deserialise_condition, seq[1:]),
+        ipoint.reaching_path_length
+    )
+    print("intersection with condition sequence \n%s\n path length %i is\n %s" % (str(seq[1:]), ipoint.reaching_path_length, str(intersection_path)))
+    edit_code(intersection_path)
+    print("------------------------------------------------")
+    print(seq)
+    return intersection_path
+
+
+def get_paths_from_observations(function_name,obs_id_list,inst_point):
+    """
+    returns a list of paths taken before each of the given observations
+    """
+
+    f=function(fully_qualified_name=function_name)
+    subchain_text=get_parametric_path(obs_id_list,inst_point)
+    subchain_dict=json.loads(subchain_text)
+    #pprint(subchain_dict)
 
     paths=[]
     seq=subchain_dict["intersection_condition_sequence"]
@@ -59,16 +87,7 @@ def get_intersection_from_observations(function_name,obs_id_list,inst_point):
         path=edges_from_condition_sequence(scfg,subchain,ipoint.reaching_path_length)
         paths.append(path)
 
-    intersection_path=edges_from_condition_sequence(
-        scfg,
-        map(deserialise_condition, seq[1:]),
-        ipoint.reaching_path_length
-    )
-    print("intersection with condition sequence \n%s\n path length %i is\n %s" % (str(seq[1:]), ipoint.reaching_path_length, str(intersection_path)))
-    edit_code(intersection_path)
-    print("------------------------------------------------")
-    print(seq)
-    return intersection_path
+    return paths
 
 
 def edit_code(path):
@@ -92,7 +111,7 @@ def edit_code(path):
     file.close()
 
 def list_observations():
-    str=urllib2.urlopen(server_url+'client/list_observations/').read()
+    str=urllib2.urlopen(get_server()+'client/list_observations/').read()
     if str=="None":
         raise ValueError('no observations')
         return
@@ -102,3 +121,15 @@ def list_observations():
         obs_class=observation(o["id"],o["instrumentation_point"],o["verdict"],o["observed_value"],o["atom_index"],o["previous_condition"])
         obs_list.append(obs_class)
     return obs_list
+
+def list_functions():
+    str=urllib2.urlopen(get_server()+'client/list_functions/').read()
+    if str=="None":
+        raise ValueError('no functions')
+        return
+    f_dict=json.loads(str)
+    f_list=[]
+    for f in f_dict:
+        f_class=function(f["id"],f["fully_qualified_name"],f["property"])
+        f_list.append(f_class)
+    return f_list
