@@ -90,7 +90,7 @@ def get_paths_from_observations(function_name,obs_id_list,inst_point):
     return paths
 
 
-def edit_code(path):
+def edit_code(path,function_name):
     condition_lines=set()
     #doing this as a set to avoid highlighting the same lines multiple times
     for path_elem in path:
@@ -99,14 +99,18 @@ def edit_code(path):
 
 #    print("condition lines", condition_lines)
 
-    file=open("routes.py.inst","r")
+    last_dot=function_name.rfind('.')
+    if last_dot==-1: function_name=''
+    function_name=function_name[0:last_dot]
+    code_file_name=json.load(open('config.json'))["monitored_service"]+function_name.replace('.','/')+'.py.inst'
+    file=open(code_file_name,"r")
     lines=file.readlines()
     for line_ind in condition_lines:
         lines[line_ind-1]='*'+lines[line_ind-1]
 
     for line in lines:
         print(line.rstrip())
-    file=open("changed_routes.py.inst","w")
+    file=open(code_file_name+'_changed',"w")
     file.writelines(lines)
     file.close()
 
