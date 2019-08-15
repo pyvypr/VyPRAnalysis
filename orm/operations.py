@@ -32,9 +32,9 @@ def get_intersection_from_observations(function_name,obs_id_list,inst_point):
 
     f=function(fully_qualified_name=function_name)
     subchain_text=get_parametric_path(obs_id_list,inst_point)
-    print(subchain_text)
+#    print(subchain_text)
     subchain_dict=json.loads(subchain_text)
-    pprint(subchain_dict)
+#    pprint(subchain_dict)
 
     paths=[]
     seq=subchain_dict["intersection_condition_sequence"]
@@ -46,10 +46,10 @@ def get_intersection_from_observations(function_name,obs_id_list,inst_point):
         map(deserialise_condition, seq[1:]),
         ipoint.reaching_path_length
     )
-    print("intersection with condition sequence \n%s\n path length %i is\n %s" % (str(seq[1:]), ipoint.reaching_path_length, str(intersection_path)))
-    edit_code(intersection_path)
-    print("------------------------------------------------")
-    print(seq)
+#    print("intersection with condition sequence \n%s\n path length %i is\n %s" % (str(seq[1:]), ipoint.reaching_path_length, str(intersection_path)))
+#    edit_code(intersection_path)
+#    print("------------------------------------------------")
+#    print(seq)
     return intersection_path
 
 
@@ -75,7 +75,7 @@ def get_paths_from_observations(function_name,obs_id_list,inst_point):
             if seq[ind]=="parameter":
                 cond=((subchain_dict["parameter_maps"])["0"])[str(obs_id_list.index(id))]
                 for cond_elem in cond:
-                    print(cond_elem)
+#                    print(cond_elem)
                     subchain.append(deserialise_condition(cond_elem))
             else:
                 subchain.append(seq[ind])
@@ -97,7 +97,7 @@ def edit_code(path):
         if type(path_elem) is VyPR.control_flow_graph.construction.CFGVertex:
             condition_lines.add(path_elem._structure_obj.lineno)
 
-    print("condition lines", condition_lines)
+#    print("condition lines", condition_lines)
 
     file=open("routes.py.inst","r")
     lines=file.readlines()
