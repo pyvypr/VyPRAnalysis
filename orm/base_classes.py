@@ -108,6 +108,20 @@ class function:
     	scfg_vertices = scfg.process_block(function_def.body)
     	return scfg
 
+    def get_verdicts(self, verdict_value=None):
+        if verdict_value==None:
+            str=urllib2.urlopen(get_server()+'client/list_verdicts_of_function/%d/'%self.id).read()
+        else:
+            str=urllib2.urlopen(get_server()+'client/list_verdicts_of_function_with_value/%d/%d/'%(self.id,verdict_value)).read()
+        if str=="None":raise ValueError('no such verdicts')
+        verdicts_dict=json.loads(str)
+        verdicts_list=[]
+        for v in verdicts_dict:
+            verdict_class=verdict(v["id"],v["binding"],v["verdict"],v["time_obtained"],v["function_call"])
+            verdicts_list.append(verdict_class)
+        return verdicts_list
+
+
 class property:
     def __init__(self, hash, serialised_structure=None):
         self.hash=hash
@@ -198,7 +212,7 @@ class function_call:
 
 
 class verdict:
-    """class verdict has same objects as the table verdict in the database
+    """class verdict has the same objects as the table verdict in the database
     initialized by either just the id or all the values
     function verdict.get_atom() returns the atom which the given verdict concerns"""
     def __init__(self,id,binding=None,verdict=None,time_obtained=None,function_call=None,collapsing_atom=None):
@@ -218,7 +232,7 @@ class verdict:
             self.verdict=verdict
             self.time_obtained=time_obtained
             self.function_call=function_call
-            self.collapsing_atom=collapsing_atom
+            if collapsing_atom!=None: self.collapsing_atom=collapsing_atom
 
     def get_property_hash(self):
         """
