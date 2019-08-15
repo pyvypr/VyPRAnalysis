@@ -39,7 +39,7 @@ def edges_from_condition_sequence(scfg, path_subchain, instrumentation_point_pat
 				# search the outgoing edges for an edge whose condition has the same length as path_subchain[condition_index]
 				for edge in curr.edges:
 					#print("testing edge condition %s against condition %s" %\
-						(edge._condition[-1], path_subchain[condition_index][0]))
+					#	(edge._condition[-1], path_subchain[condition_index][0]))
 					# for now we assume that conditions are single objects (ie, not conjunctions)
 					if type(edge._condition[-1]) == type(path_subchain[condition_index][0]):
 						# conditions match
@@ -83,7 +83,7 @@ def edges_from_condition_sequence(scfg, path_subchain, instrumentation_point_pat
 				# search the outgoing edges for the edge leading to the main body
 				for edge in curr.edges:
 					#print("testing edge with condition %s against cumulative condition %s" %\
-							(edge._condition, cumulative_conditions + [path_subchain[condition_index]]))
+					#		(edge._condition, cumulative_conditions + [path_subchain[condition_index]]))
 					if edge._condition[-1] == "try-catch-main":
 						#print("traversing edge with condition %s" % edge._condition)
 						curr = edge._target_state
