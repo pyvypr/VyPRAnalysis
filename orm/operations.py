@@ -15,8 +15,12 @@ from VyPRAnalysis import get_server
 from VyPRAnalysis.orm.base_classes import function, observation, instrumentation_point
 from VyPRAnalysis.path_reconstruction import edges_from_condition_sequence, deserialise_condition
 
-def get_parametric_path(obs_id_list,instrumentation_point_id):
-    #instrumentation_point optional -> get it from an observation in the list??
+def get_parametric_path(obs_id_list,instrumentation_point_id=None):
+    #instrumentation_point optional -> get it from an observation in the list
+    if instrumentation_point_id==None:
+        instrumentation_point_id=observation(obs_id_list[0]).instrumentation_point
+
+    #checking if all the observations are made at the same point
     for id in obs_id_list:
         obs=observation(id)
         if obs.instrumentation_point!=instrumentation_point_id:
@@ -28,7 +32,16 @@ def get_parametric_path(obs_id_list,instrumentation_point_id):
     return req.text
 
 
-def get_intersection_from_observations(function_name,obs_id_list,inst_point):
+def get_intersection_from_observations(function_name,obs_id_list,inst_point=None):
+
+    if inst_point==None:
+        inst_point=observation(obs_id_list[0]).instrumentation_point
+
+    #checking if all the observations are made at the same point
+    for id in obs_id_list:
+        obs=observation(id)
+        if obs.instrumentation_point!=inst_point:
+            raise ValueError('the observations must have the same instrumentation point')
 
     f=function(fully_qualified_name=function_name)
     subchain_text=get_parametric_path(obs_id_list,inst_point)
@@ -53,10 +66,19 @@ def get_intersection_from_observations(function_name,obs_id_list,inst_point):
     return intersection_path
 
 
-def get_paths_from_observations(function_name,obs_id_list,inst_point):
+def get_paths_from_observations(function_name,obs_id_list,inst_point=None):
     """
     returns a list of paths taken before each of the given observations
     """
+
+    if inst_point==None:
+        inst_point=observation(obs_id_list[0]).instrumentation_point
+
+    #checking if all the observations are made at the same point
+    for id in obs_id_list:
+        obs=observation(id)
+        if obs.instrumentation_point!=inst_point:
+            raise ValueError('the observations must have the same instrumentation point')
 
     f=function(fully_qualified_name=function_name)
     subchain_text=get_parametric_path(obs_id_list,inst_point)
