@@ -15,8 +15,12 @@ from VyPRAnalysis import get_server
 from VyPRAnalysis.orm.base_classes import function, observation, instrumentation_point
 from VyPRAnalysis.path_reconstruction import edges_from_condition_sequence, deserialise_condition
 
-def get_parametric_path(obs_id_list,instrumentation_point_id):
-    #instrumentation_point optional -> get it from an observation in the list??
+def get_parametric_path(obs_id_list,instrumentation_point_id=None):
+    #instrumentation_point optional -> get it from an observation in the list
+    if instrumentation_point_id==None:
+        instrumentation_point_id=observation(obs_id_list[0]).instrumentation_point
+
+    #checking if all the observations are made at the same point
     for id in obs_id_list:
         obs=observation(id)
         if obs.instrumentation_point!=instrumentation_point_id:
@@ -28,13 +32,22 @@ def get_parametric_path(obs_id_list,instrumentation_point_id):
     return req.text
 
 
-def get_intersection_from_observations(function_name,obs_id_list,inst_point):
+def get_intersection_from_observations(function_name,obs_id_list,inst_point=None):
+
+    if inst_point==None:
+        inst_point=observation(obs_id_list[0]).instrumentation_point
+
+    #checking if all the observations are made at the same point
+    for id in obs_id_list:
+        obs=observation(id)
+        if obs.instrumentation_point!=inst_point:
+            raise ValueError('the observations must have the same instrumentation point')
 
     f=function(fully_qualified_name=function_name)
     subchain_text=get_parametric_path(obs_id_list,inst_point)
-    print(subchain_text)
+#    print(subchain_text)
     subchain_dict=json.loads(subchain_text)
-    pprint(subchain_dict)
+#    pprint(subchain_dict)
 
     paths=[]
     seq=subchain_dict["intersection_condition_sequence"]
@@ -46,17 +59,26 @@ def get_intersection_from_observations(function_name,obs_id_list,inst_point):
         map(deserialise_condition, seq[1:]),
         ipoint.reaching_path_length
     )
-    print("intersection with condition sequence \n%s\n path length %i is\n %s" % (str(seq[1:]), ipoint.reaching_path_length, str(intersection_path)))
-    edit_code(intersection_path)
-    print("------------------------------------------------")
-    print(seq)
+#    print("intersection with condition sequence \n%s\n path length %i is\n %s" % (str(seq[1:]), ipoint.reaching_path_length, str(intersection_path)))
+#    edit_code(intersection_path)
+#    print("------------------------------------------------")
+#    print(seq)
     return intersection_path
 
 
-def get_paths_from_observations(function_name,obs_id_list,inst_point):
+def get_paths_from_observations(function_name,obs_id_list,inst_point=None):
     """
     returns a list of paths taken before each of the given observations
     """
+
+    if inst_point==None:
+        inst_point=observation(obs_id_list[0]).instrumentation_point
+
+    #checking if all the observations are made at the same point
+    for id in obs_id_list:
+        obs=observation(id)
+        if obs.instrumentation_point!=inst_point:
+            raise ValueError('the observations must have the same instrumentation point')
 
     f=function(fully_qualified_name=function_name)
     subchain_text=get_parametric_path(obs_id_list,inst_point)
@@ -75,7 +97,7 @@ def get_paths_from_observations(function_name,obs_id_list,inst_point):
             if seq[ind]=="parameter":
                 cond=((subchain_dict["parameter_maps"])["0"])[str(obs_id_list.index(id))]
                 for cond_elem in cond:
-                    print(cond_elem)
+#                    print(cond_elem)
                     subchain.append(deserialise_condition(cond_elem))
             else:
                 subchain.append(seq[ind])
@@ -90,23 +112,27 @@ def get_paths_from_observations(function_name,obs_id_list,inst_point):
     return paths
 
 
-def edit_code(path):
+def edit_code(path,function_name):
     condition_lines=set()
     #doing this as a set to avoid highlighting the same lines multiple times
     for path_elem in path:
         if type(path_elem) is VyPR.control_flow_graph.construction.CFGVertex:
             condition_lines.add(path_elem._structure_obj.lineno)
 
-    print("condition lines", condition_lines)
+#    print("condition lines", condition_lines)
 
-    file=open("routes.py.inst","r")
+    last_dot=function_name.rfind('.')
+    if last_dot==-1: function_name=''
+    function_name=function_name[0:last_dot]
+    code_file_name=json.load(open('config.json'))["monitored_service"]+function_name.replace('.','/')+'.py.inst'
+    file=open(code_file_name,"r")
     lines=file.readlines()
     for line_ind in condition_lines:
         lines[line_ind-1]='*'+lines[line_ind-1]
 
     for line in lines:
         print(line.rstrip())
-    file=open("changed_routes.py.inst","w")
+    file=open(code_file_name+'_changed',"w")
     file.writelines(lines)
     file.close()
 

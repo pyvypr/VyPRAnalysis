@@ -412,6 +412,19 @@ def verdict(id=None, binding=None,verdict=None,time_obtained=None,function_call=
 
         raise Exception("Cannot instantiate single or multiple verdicts with parameters given.")
 
+    def get_observations(self):
+        """
+        Get a list of the observations that were needed to obtain this verdict.
+        """
+        str=urllib2.urlopen(get_server()+'client/get_observations_from_verdict/%d/'% self.id).read()
+        if str=="None": print('no observations for given verdict')
+        obs_dict=json.loads(str)
+        obs_list=[]
+        for o in obs_dict:
+            obs_class=observation(o["id"],o["instrumentation_point"],o["verdict"],o["observed_value"],o["atom_index"],o["previous_condition"])
+            obs_list.append(obs_class)
+        return obs_list
+
 def list_verdicts_with_value(value):
 
     """called as list_verdicts(True) or list_verdicts(False)
