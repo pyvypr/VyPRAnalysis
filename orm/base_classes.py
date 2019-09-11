@@ -1,8 +1,6 @@
 """
 Base ORM classes.
 """
-
-import urllib2
 import json
 import os
 import ast
@@ -16,40 +14,21 @@ from VyPRAnalysis.path_reconstruction import edges_from_condition_sequence, dese
 # VyPR imports
 import VyPR.control_flow_graph.construction
 
-class function:
+class Function(object):
 
-    """class function represents the table function in the database
-    it is initialized by its name or id
-    as f=function(id=1) or f=function(fully_qualified_name=name)"""
+    def __init__(self, id, fully_qualified_name, property):
+        self.id = id
+        self.fully_qualified_name = fully_qualified_name
+        self.property = property
 
-    def __init__(self, id=None, fully_qualified_name=None, property=None):
-
-        #check if any of the arguments that identify a function is given
-        if id==None and fully_qualified_name==None:
-            raise ValueError('id or name of function needed as argument')
-
-        #if all the arguments are given, there is no need to connect to the db
-        #if just the name or the id are given, then get the unknown ones from the db
-        if id!=None and fully_qualified_name!=None and property!=None:
-            self.id=id
-            self.fully_qualified_name=fully_qualified_name
-            self.property=property
-        elif fully_qualified_name!=None:
-            self.fully_qualified_name=fully_qualified_name
-            str=connection.request('client/get_function_by_name/%s/' % fully_qualified_name)
-            if str=="None": raise ValueError('no functions named %s'%fully_qualified_name)
-            str=str[1:-1]
-            f_dict=json.loads(str)
-            self.id=f_dict["id"]
-            self.property=f_dict["property"]
-        elif id!=None:
-            self.id=id
-            str=connection.request('client/get_function_by_id/%d/' % id)
-            if str=="None": raise ValueError('no functions with given ID')
-            str=str[1:-1]
-            f_dict=json.loads(str)
-            self.fully_qualified_name=f_dict["fully_qualified_name"]
-            self.property=f_dict["property"]
+    def __repr__(self):
+        return "[%s id=%i, fully_qualified_name=%s, property=%s]" %\
+            (
+                self.__class__.__name__,
+                self.id,
+                self.fully_qualified_name,
+                self.property
+            )
 
     def get_calls(self, request=None):
         """function.get_calls() returns a list of calls for the given function
@@ -64,7 +43,7 @@ class function:
         calls_dict=json.loads(str)
         calls_list=[]
         for call in calls_dict:
-            call_class=function_call(call["id"],call["function"],call["time_of_call"],call["http_request"])
+            call_class=FunctionCall(call["id"],call["function"],call["time_of_call"],call["http_request"])
             calls_list.append(call_class)
         return calls_list
 
@@ -75,7 +54,7 @@ class function:
         calls_dict=json.loads(str)
         calls_list=[]
         for call in calls_dict:
-            call_class=function_call(call["id"],call["function"],call["time_of_call"],call["http_request"])
+            call_class=FunctionCall(call["id"],call["function"],call["time_of_call"],call["http_request"])
             calls_list.append(call_class)
         return calls_list
 
@@ -123,59 +102,156 @@ class function:
             verdicts_list.append(verdict_class)
         return verdicts_list
 
+    def get_bindings(self):
+        connection = get_connection()
+        result = connection.request("client/get_bindings_from_function_property_pair/%d/" % self.id)
+        if result == "None":
+            raise ValueError("No such bindings")
+        bindings_dict = json.loads(result)
+        binding_list = []
+        for b in bindings_dict:
+            binding_obj = binding(b["id"], b["binding_space_index"], b["function"], b["binding_statement_lines"])
+            binding_list.append(binding_obj)
 
-class property:
-    def __init__(self, hash, serialised_structure=None):
+        return binding_list
+
+def function(id=None, fully_qualified_name=None, property=None):
+    """
+    Factory function for either getting a single function, or a list of functions.
+    """
+
+    connection = get_connection()
+
+    if id!=None and fully_qualified_name!=None and property!=None:
+
+        return Function(
+            id=id,
+            fully_qualified_name=fully_qualified_name,
+            property=property
+        )
+
+    elif fully_qualified_name!=None:
+
+        functions=connection.request('client/get_function_by_name/%s/' % fully_qualified_name)
+        if functions=="None": raise ValueError('no functions named %s'%fully_qualified_name)
+        f_dict=json.loads(functions)
+        functions_list = []
+
+        for f in f_dict:
+            f_obj = function(f["id"], f["fully_qualified_name"], f["property"])
+            functions_list.append(f_obj)
+
+        return functions_list
+
+    elif id!=None:
+
+        str=connection.request('client/get_function_by_id/%d/' % id)
+        if str=="None": raise ValueError('no functions with given ID')
+        str=str[1:-1]
+        f_dict=json.loads(str)
+
+        return Function(
+            id=id,
+            fully_qualified_name=f_dict["fully_qualified_name"],
+            property=f_dict["property"]
+        )
+
+
+class Property(object):
+    def __init__(self, hash):
         connection = get_connection()
         self.hash=hash
-        if serialised_structure==None:
-            str=connection.request('client/get_property_by_hash/%s/' % hash)
-            if str=="None":
-                raise ValueError('no such property')
-            else:
-                str=str[1:-1]
-                f_dict=json.loads(str)
-                self.serialised_structure=f_dict["serialised_structure"]
+        str=connection.request('client/get_property_by_hash/%s/' % hash)
+        if str=="None":
+            raise ValueError('no such property')
         else:
-            self.serialised_structure=serialised_structure
+            str=str[1:-1]
+            f_dict=json.loads(str)
+            self.serialised_structure=f_dict["serialised_structure"]
 
-class binding:
-  def __init__(self,id,binding_space_index=None,function=None,binding_statement_lines=None):
+    def __repr__(self):
+        return "[Property hash=%s]" % self.hash
+
+class Binding(object):
+    def __init__(self,id,binding_space_index,function,binding_statement_lines):
+        connection = get_connection()
+        self.id=id
+        if binding_space_index==None or function==None or binding_statement_lines==None:
+            str=connection.request('client/get_binding_by_id/%d/' % id)
+            if str=="None": raise ValueError('there is no binding with given id')
+            str=str[1:-1]
+            dict=json.loads(str)
+            self.binding_space_index=dict["binding_space_index"]
+            self.function=dict["function"]
+            self.binding_statement_lines=dict["binding_statement_lines"]
+        else:
+            self.binding_space_index=binding_space_index
+            self.function=function
+            self.binding_statement_lines=binding_statement_lines
+
+    def __repr__(self):
+        return "[%s id=%i, binding_space_index=%i, function=%i, binding_statement_lines=%s]" %\
+            (
+                self.__class__.__name__,
+                self.id,
+                self.binding_space_index,
+                self.function,
+                self.binding_statement_lines
+            )
+
+    def get_verdicts(self):
+        str=connection.request('client/get_verdicts_from_binding/%s/' % hash)
+        if str=="None":
+            raise ValueError('no such property')
+        else:
+            str=str[1:-1]
+            f_dict=json.loads(str)
+            self.serialised_structure=f_dict["serialised_structure"]
+
+
+def binding(id=None, binding_space_index=None, function=None, binding_statement_lines=None):
+
     connection = get_connection()
-    self.id=id
-    if binding_space_index==None or function==None or binding_statement_lines==None:
-        str=connection.request('client/get_binding_by_id/%d/' % id)
-        if str=="None": raise ValueError('there is no binding with given id')
-        str=str[1:-1]
-        dict=json.loads(str)
-        self.binding_space_index=dict["binding_space_index"]
-        self.function=dict["function"]
-        self.binding_statement_lines=dict["binding_statement_lines"]
+
+    if id!=None and binding_space_index!=None and function!=None and binding_statement_lines!=None:
+
+        return Binding(
+            id=id,
+            binding_space_index=binding_space_index,
+            function=function,
+            binding_statement_lines=binding_statement_lines
+        )
+
+    elif function!=None:
+
+        bindings = connection.request("client/get_bindings_from_function_property_pair/%d/" % function)
+        result = json.loads(bindings)
+        print(result)
+
     else:
-        self.binding_space_index=binding_space_index
-        self.function=function
-        self.binding_statement_lines=binding_statement_lines
+
+        raise Exception("Cannot instantiate single or multiple bindings with parameters given.")
 
 
-class function_call:
+class FunctionCall(object):
     """class function_call represents the homonymous table in the database
     initialized by either just the id or all the values"""
 
-    def __init__(self,id,function=None,time_of_call=None,http_request=None):
-        connection = get_connection()
+    def __init__(self,id,function,time_of_call,http_request):
         self.id=id
-        if function==None or time_of_call==None or http_request==None:
-            str=connection.request('client/get_call_by_id/%d/' % id)
-            if str=="None": raise ValueError('no function calls with given ID')
-            str=str[1:-1]
-            dict=json.loads(str)
-            self.function=dict["function"]
-            self.time_of_call=dict["time_of_call"]
-            self.http_request=dict["http_request"]
-        else:
-            self.function=function
-            self.time_of_call=time_of_call
-            self.http_request=http_request
+        self.function=function
+        self.time_of_call=time_of_call
+        self.http_request=http_request
+
+    def __repr__(self):
+        return "[%s id=%i, function=%i, time_of_call=%s, http_request=%i]" %\
+            (
+                self.__class__.__name__,
+                self.id,
+                self.function,
+                self.time_of_call,
+                self.http_request
+            )
 
     def get_falsifying_observation(self):
         """returns the first (wrt verdicts) observation that causes
@@ -216,8 +292,28 @@ class function_call:
             obs_list.append(obs_class)
         return obs_list
 
+def function_call(id):
+    """
+    Factory function for function calls.
+    The only way this needs to be used is with the ID of the function call.
+    Otherwise, methods on other ORM objects can be used.
+    """
 
-class verdict:
+    connection = get_connection()
+
+    str=connection.request('client/get_call_by_id/%d/' % id)
+    if str=="None": raise ValueError('no function calls with given ID')
+    str=str[1:-1]
+    dict=json.loads(str)
+
+    return FunctionCall(
+        id=id,
+        function=function,
+        time_of_call=time_of_call,
+        http_request=http_request
+    )
+
+class Verdict(object):
     """class verdict has the same objects as the table verdict in the database
     initialized by either just the id or all the values
     function verdict.get_atom() returns the atom which the given verdict concerns"""
@@ -289,7 +385,7 @@ def list_verdicts_dict_with_value(value):
     return d
 
 
-class http_request:
+class HTTPRequest(object):
     """
     class http_request represents the http_request table in the database
     initialized as http_request(id=1) or http_request(time_of_request=t)
@@ -326,13 +422,13 @@ class http_request:
         calls_dict=json.loads(str)
         calls_list=[]
         for call in calls_dict:
-            call_class=function_call(call["id"],call["function"],call["time_of_call"],call["http_request"])
+            call_class=FunctionCall(call["id"],call["function"],call["time_of_call"],call["http_request"])
             calls_list.append(call_class)
         return calls_list
 
 
 
-class atom:
+class Atom(object):
     """
     initialized as either atom(id=n) or atom(index_in_atoms=n)
     or with all arguments if known
@@ -425,26 +521,14 @@ class instrumentation_point:
 
 
 
-class observation:
+class Observation(object):
 
     def __init__(self,id,instrumentation_point=None,verdict=None,observed_value=None,atom_index=None,previous_condition=None):
-        self.id=id
-        if instrumentation_point==None or verdict==None or observed_value==None or atom_index==None or previous_condition==None:
-            str=connection.request('client/get_observation_by_id/%d/' % self.id)
-            if str=="None": raise ValueError('there is no observation with given id')
-            str=str[1:-1]
-            d=json.loads(str)
-            self.instrumentation_point=d["instrumentation_point"]
-            self.verdict=d["verdict"]
-            self.observed_value=d["observed_value"]
-            self.atom_index=d["atom_index"]
-            self.previous_condition=d["previous_condition"]
-        else:
-            self.instrumentation_point=instrumentation_point
-            self.verdict=verdict
-            self.observed_value=observed_value
-            self.atom_index=atom_index
-            self.previous_condition=previous_condition
+        self.instrumentation_point = instrumentation_point
+        self.verdict = verdict
+        self.observed_value = observed_value
+        self.atom_index = atom_index
+        self.previous_condition = previous_condition
 
     def get_assignments(self):
         connection = get_connection()
@@ -453,7 +537,7 @@ class observation:
         assignment_dict=json.loads(str)
         assignment_list=[]
         for a in assignment_dict:
-            assignment_class=assignment(a["id"],a["variable"],a["value"],a["type"])
+            assignment_class=assignment(a["id"])
             assignment_list.append(assignment_class)
         return assignment_list
 
@@ -482,19 +566,40 @@ class observation:
     def get_instrumentation_point(self):
         return instrumentation_point(id=self.instrumentation_point)
 
-class assignment:
-    def __init__(self,id,variable=None,value=None,type=None):
+def observation(id,instrumentation_point=None,verdict=None,observed_value=None,atom_index=None,previous_condition=None):
+    """
+    Factory function for observations.
+    """
+    if instrumentation_point==None or verdict==None or observed_value==None or atom_index==None or previous_condition==None:
+        str=connection.request('client/get_observation_by_id/%d/' % self.id)
+        if str=="None": raise ValueError('there is no observation with given id')
+        str=str[1:-1]
+        d=json.loads(str)
+
+        return Observation(
+            instrumentation_point=d["instrumentation_point"],
+            verdict=d["verdict"],
+            observed_value=d["observed_value"],
+            atom_index=d["atom_index"],
+            previous_condition=d["previous_condition"]
+        )
+    else:
+        return Observation(
+            instrumentation_point=instrumentation_point,
+            verdict=verdict,
+            observed_value=observed_value,
+            atom_index=atom_index,
+            previous_condition=previous_condition
+        )
+
+class Assignment(object):
+    def __init__(self,id):
         connection = get_connection()
         self.id=id
-        if variable==None or value==None or type==None:
-            str=connection.request('client/get_assignment_by_id/%d/' % self.id)
-            if str=="None": raise ValueError('there is no assignment with given id')
-            str=str[1:-1]
-            d=json.loads(str)
-            self.variable=d["variable"]
-            self.value=d["value"] #is it better to keep this serialised or to deserialise it?
-            self.type=d["type"]
-        else:
-            self.variable=variable
-            self.value=value
-            self.type=type
+        str=connection.request('client/get_assignment_by_id/%d/' % self.id)
+        if str=="None": raise ValueError('there is no assignment with given id')
+        str=str[1:-1]
+        d=json.loads(str)
+        self.variable=d["variable"]
+        self.value=d["value"] #is it better to keep this serialised or to deserialise it?
+        self.type=d["type"]
