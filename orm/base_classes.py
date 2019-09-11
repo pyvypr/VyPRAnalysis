@@ -177,13 +177,7 @@ class Binding(object):
         connection = get_connection()
         self.id=id
         if binding_space_index==None or function==None or binding_statement_lines==None:
-            str=connection.request('client/get_binding_by_id/%d/' % id)
-            if str=="None": raise ValueError('there is no binding with given id')
-            str=str[1:-1]
-            dict=json.loads(str)
-            self.binding_space_index=dict["binding_space_index"]
-            self.function=dict["function"]
-            self.binding_statement_lines=dict["binding_statement_lines"]
+            pass
         else:
             self.binding_space_index=binding_space_index
             self.function=function
@@ -222,11 +216,29 @@ def binding(id=None, binding_space_index=None, function=None, binding_statement_
             binding_statement_lines=binding_statement_lines
         )
 
+    elif id!=None:
+        str=connection.request('client/get_binding_by_id/%d/' % id)
+        if str=="None": raise ValueError('there is no binding with given id')
+        str=str[1:-1]
+        dict=json.loads(str)
+
+        return Binding(
+            id=id,
+            binding_space_index=dict["binding_space_index"],
+            function=dict["function"],
+            binding_statement_lines=dict["binding_statement_lines"]
+        )
+
     elif function!=None:
 
         bindings = connection.request("client/get_bindings_from_function_property_pair/%d/" % function)
         result = json.loads(bindings)
-        print(result)
+        binding_list = []
+        for b in result:
+            new_binding = binding(b["id"], b["binding_space_index"], b["function"], b["binding_statement_lines"])
+            binding_list.append(new_binding)
+
+        return binding_list
 
     else:
 
@@ -337,6 +349,18 @@ class Verdict(object):
             self.function_call=function_call
             if collapsing_atom!=None: self.collapsing_atom=collapsing_atom
 
+    def __repr__(self):
+        return "[%s id=%i, binding=%i, verdict=%i, time_obtained=%s, function_call=%i, collapsing_atom=%i]" %\
+            (
+                self.__class__.__name__,
+                self.id,
+                self.binding,
+                self.verdict,
+                self.time_obtained,
+                self.function_call,
+                self.collapsing_atom
+            )
+
     def get_property_hash(self):
         """
         initialise the binding using the attribute that stores its id
@@ -350,7 +374,43 @@ class Verdict(object):
         return function(binding(self.binding).function).property
 
     def get_collapsing_atom(self):
-        return atom(index_in_atoms=self.collapsing_atom,property_hash=self.get_property_hash())
+        return Atom(index_in_atoms=self.collapsing_atom,property_hash=self.get_property_hash())
+
+def verdict(id=None, binding=None,verdict=None,time_obtained=None,function_call=None,collapsing_atom=None):
+    """
+    Factory function for verdicts.
+    """
+
+    if id!=None and binding!=None and verdict!=None and time_obtained!=None and function_call!=None and collapsing_atom!=None:
+
+        return Verdict(
+            id=id,
+            binding=binding,
+            verdict=verdict,
+            time_obtained=time_obtained,
+            function_call=function_call,
+            collapsing_atom=collapsing_atom
+        )
+
+    elif id!=None:
+
+        str=connection.request('client/get_verdict_by_id/%d/' % self.id)
+        if str=="None": raise ValueError('no verdicts with given ID')
+        str=str[1:-1]
+        d=json.loads(str)
+
+        return Verdict(
+            id=id,
+            binding=d["binding"],
+            verdict=d["verdict"],
+            time_obtained=d["time_obtained"],
+            function_call=d["function_call"],
+            collapsing_atom=d["collapsing_atom"]
+        )
+
+    else:
+
+        raise Exception("Cannot instantiate single or multiple verdicts with parameters given.")
 
 def list_verdicts_with_value(value):
 
@@ -426,6 +486,11 @@ class HTTPRequest(object):
             calls_list.append(call_class)
         return calls_list
 
+def http_request(id=None, time_of_request=None):
+    """
+    Factory function for HTTP requests.
+    """
+    return HTTPRequest(id, time_of_request)
 
 
 class Atom(object):
@@ -462,6 +527,17 @@ class Atom(object):
                 self.id=d["id"]
             else:
                 raise ValueError('either id or index_in_atoms and property arguments needed to initialize object')
+
+    def __repr__(self):
+        return "[%s id=%i, property_hash=%s, index_in_atoms=%i, structure=(%s)]" %\
+            (
+                self.__class__.__name__,
+                self.id,
+                self.property_hash,
+                self.index_in_atoms,
+                str(self.get_structure())
+            )
+
     def get_structure(self):
         """
         atom.get_structure() returns the serialised structure of the atom in decoded format
@@ -552,6 +628,9 @@ class Observation(object):
         return assignment_dict
 
     def verdict_severity(self):
+        """
+        TODO: modify to support mixed atoms.
+        """
         formula=verdict(self.verdict).get_collapsing_atom().get_structure()
         interval=formula._interval
         lower=interval[0]
