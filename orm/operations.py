@@ -178,7 +178,7 @@ class PathCollection(object):
         parametric_path = intersection_tree.read_leaves()
         return parametric_path
 
-    def show_in_file(self, verbose=False):
+    def show_critical_points_in_file(self, filename=None, verbose=False):
         path = self.intersection()
         condition_lines=set()
         #doing this as a set to avoid highlighting the same lines multiple times
@@ -200,7 +200,8 @@ class PathCollection(object):
         if verbose:
             for line in lines:
                 print(line.rstrip())
-        file=open(code_file_name+'_changed',"w")
+        target_file = code_file_name+'_changed' if not(filename) else filename
+        file=open(target_file,"w")
         file.writelines(lines)
         file.close()
 
