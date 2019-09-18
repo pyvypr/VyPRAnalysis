@@ -7,7 +7,7 @@ import ast
 import pickle
 
 # VyPRAnalysis imports
-from VyPRAnalysis import get_server, get_connection
+from VyPRAnalysis import get_server, get_connection, get_monitored_service_path
 from VyPRAnalysis.utils import get_qualifier_subsequence
 from VyPRAnalysis.path_reconstruction import edges_from_condition_sequence, deserialise_condition
 
@@ -22,7 +22,7 @@ class Function(object):
         self.property = property
 
     def __repr__(self):
-        return "[%s id=%i, fully_qualified_name=%s, property=%s]" %\
+        return "<%s id=%i, fully_qualified_name=%s, property=%s>" %\
             (
                 self.__class__.__name__,
                 self.id,
@@ -61,7 +61,7 @@ class Function(object):
     def get_graph(self):
         """returns scfg of function"""
         func=self.fully_qualified_name
-        location=json.load(open('config.json'))["monitored_service"]
+        location=get_monitored_service_path()
         module = func[0:func.rindex(".")]
     	func = func[func.rindex(".")+1:]
     	file_name = module.replace(".", "/") + ".py.inst"
@@ -170,7 +170,7 @@ class Property(object):
             self.serialised_structure=f_dict["serialised_structure"]
 
     def __repr__(self):
-        return "[Property hash=%s]" % self.hash
+        return "<Property hash=%s>" % self.hash
 
 class Binding(object):
     def __init__(self,id,binding_space_index,function,binding_statement_lines):
@@ -184,7 +184,7 @@ class Binding(object):
             self.binding_statement_lines=binding_statement_lines
 
     def __repr__(self):
-        return "[%s id=%i, binding_space_index=%i, function=%i, binding_statement_lines=%s]" %\
+        return "<%s id=%i, binding_space_index=%i, function=%i, binding_statement_lines=%s>" %\
             (
                 self.__class__.__name__,
                 self.id,
@@ -256,7 +256,7 @@ class FunctionCall(object):
         self.http_request=http_request
 
     def __repr__(self):
-        return "[%s id=%i, function=%i, time_of_call=%s, http_request=%i]" %\
+        return "<%s id=%i, function=%i, time_of_call=%s, http_request=%i>" %\
             (
                 self.__class__.__name__,
                 self.id,
@@ -268,6 +268,8 @@ class FunctionCall(object):
     def get_falsifying_observation(self):
         """returns the first (wrt verdicts) observation that causes
         failure for the given call"""
+
+        connection = get_connection()
 
         str=connection.request('client/get_falsifying_observation_for_call/%d/' % self.id)
         if str=="None":
@@ -320,9 +322,9 @@ def function_call(id):
 
     return FunctionCall(
         id=id,
-        function=function,
-        time_of_call=time_of_call,
-        http_request=http_request
+        function=dict["function"],
+        time_of_call=dict["time_of_call"],
+        http_request=dict["http_request"]
     )
 
 class Verdict(object):
@@ -350,7 +352,7 @@ class Verdict(object):
             if collapsing_atom!=None: self.collapsing_atom=collapsing_atom
 
     def __repr__(self):
-        return "[%s id=%i, binding=%i, verdict=%i, time_obtained=%s, function_call=%i, collapsing_atom=%i]" %\
+        return "<%s id=%i, binding=%i, verdict=%i, time_obtained=%s, function_call=%i, collapsing_atom=%i>" %\
             (
                 self.__class__.__name__,
                 self.id,
@@ -376,10 +378,26 @@ class Verdict(object):
     def get_collapsing_atom(self):
         return Atom(index_in_atoms=self.collapsing_atom,property_hash=self.get_property_hash())
 
+    def get_observations(self):
+        """
+        Get a list of the observations that were needed to obtain this verdict.
+        """
+        connection = get_connection()
+        str=connection.request('client/get_observations_from_verdict/%d/'% self.id)
+        if str=="None": print('no observations for given verdict')
+        obs_dict=json.loads(str)
+        obs_list=[]
+        for o in obs_dict:
+            obs_class=observation(o["id"],o["instrumentation_point"],o["verdict"],o["observed_value"],o["atom_index"],o["previous_condition"])
+            obs_list.append(obs_class)
+        return obs_list
+
 def verdict(id=None, binding=None,verdict=None,time_obtained=None,function_call=None,collapsing_atom=None):
     """
     Factory function for verdicts.
     """
+
+    connection = get_connection()
 
     if id!=None and binding!=None and verdict!=None and time_obtained!=None and function_call!=None and collapsing_atom!=None:
 
@@ -394,7 +412,7 @@ def verdict(id=None, binding=None,verdict=None,time_obtained=None,function_call=
 
     elif id!=None:
 
-        str=connection.request('client/get_verdict_by_id/%d/' % self.id)
+        str=connection.request('client/get_verdict_by_id/%d/' % id)
         if str=="None": raise ValueError('no verdicts with given ID')
         str=str[1:-1]
         d=json.loads(str)
@@ -411,19 +429,6 @@ def verdict(id=None, binding=None,verdict=None,time_obtained=None,function_call=
     else:
 
         raise Exception("Cannot instantiate single or multiple verdicts with parameters given.")
-
-    def get_observations(self):
-        """
-        Get a list of the observations that were needed to obtain this verdict.
-        """
-        str=urllib2.urlopen(get_server()+'client/get_observations_from_verdict/%d/'% self.id).read()
-        if str=="None": print('no observations for given verdict')
-        obs_dict=json.loads(str)
-        obs_list=[]
-        for o in obs_dict:
-            obs_class=observation(o["id"],o["instrumentation_point"],o["verdict"],o["observed_value"],o["atom_index"],o["previous_condition"])
-            obs_list.append(obs_class)
-        return obs_list
 
 def list_verdicts_with_value(value):
 
@@ -542,7 +547,7 @@ class Atom(object):
                 raise ValueError('either id or index_in_atoms and property arguments needed to initialize object')
 
     def __repr__(self):
-        return "[%s id=%i, property_hash=%s, index_in_atoms=%i, structure=(%s)]" %\
+        return "<%s id=%i, property_hash=%s, index_in_atoms=%i, structure=(%s)>" %\
             (
                 self.__class__.__name__,
                 self.id,
@@ -613,11 +618,24 @@ class instrumentation_point:
 class Observation(object):
 
     def __init__(self,id,instrumentation_point=None,verdict=None,observed_value=None,atom_index=None,previous_condition=None):
+        self.id = id
         self.instrumentation_point = instrumentation_point
         self.verdict = verdict
         self.observed_value = observed_value
         self.atom_index = atom_index
         self.previous_condition = previous_condition
+
+    def __repr__(self):
+        return "<%s id=%i, instrumentation_point=%i, verdict=%i, observed_value=%s, atom_index=%i, previous_condition=%i>" %\
+            (
+                self.__class__.__name__,
+                self.id,
+                self.instrumentation_point,
+                self.verdict,
+                self.observed_value,
+                self.atom_index,
+                self.previous_condition
+            )
 
     def get_assignments(self):
         connection = get_connection()
@@ -662,6 +680,7 @@ def observation(id,instrumentation_point=None,verdict=None,observed_value=None,a
     """
     Factory function for observations.
     """
+    connection = get_connection()
     if instrumentation_point==None or verdict==None or observed_value==None or atom_index==None or previous_condition==None:
         str=connection.request('client/get_observation_by_id/%d/' % self.id)
         if str=="None": raise ValueError('there is no observation with given id')
@@ -669,6 +688,7 @@ def observation(id,instrumentation_point=None,verdict=None,observed_value=None,a
         d=json.loads(str)
 
         return Observation(
+            id = id,
             instrumentation_point=d["instrumentation_point"],
             verdict=d["verdict"],
             observed_value=d["observed_value"],
@@ -677,6 +697,7 @@ def observation(id,instrumentation_point=None,verdict=None,observed_value=None,a
         )
     else:
         return Observation(
+            id = id,
             instrumentation_point=instrumentation_point,
             verdict=verdict,
             observed_value=observed_value,

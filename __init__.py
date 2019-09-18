@@ -20,6 +20,7 @@ config_dict = None
 server_url = None
 connection = None
 vypr_path = "VyPRAnalysis"
+monitored_service_path = None
 
 sys.path.append(vypr_path)
 
@@ -27,9 +28,15 @@ def set_config_file(config_file_name='config.json'):
     """
     Given config_file_name, read the configuration.
     """
-    global config_dict, server_url
-    config_dict = json.loads(open(config_file_name))
+    global config_dict, server_url, monitored_service_path, vypr_path
+    config_dict = json.loads(open(config_file_name).read())
     server_url = config_dict["verdict_server_url"]
+    monitored_service_path = config_dict["monitored_service"]
+    vypr_path = config_dict["vypr_path"]
+
+    set_server(server_url)
+    set_vypr_path(vypr_path)
+    print(sys.path)
 
 def set_server(given_url):
     """
@@ -51,6 +58,8 @@ def get_server():
 
 def get_connection():
     global connection
+    if get_server() is None:
+        raise Exception("No verdict server set.")
     # try the handshake
     response = connection.handshake()
     return connection
@@ -59,6 +68,10 @@ def set_vypr_path(path):
     global vypr_path
     vypr_path = path
     sys.path.append(vypr_path)
+
+def get_monitored_service_path():
+    global monitored_service_path
+    return monitored_service_path
 
 
 """
