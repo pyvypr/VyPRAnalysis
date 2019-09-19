@@ -149,10 +149,11 @@ class PathCollection(object):
     or modification of already reconstructed paths.
     """
 
-    def __init__(self, paths, scfg, function_name):
+    def __init__(self, paths, scfg, function_name, parametric=False):
         self._paths = paths
         self._scfg = scfg
         self._function_name = function_name
+        self._parametric = parametric
 
     def __repr__(self):
         return "<%s paths=%s>" %\
@@ -161,7 +162,7 @@ class PathCollection(object):
                 "\n\n".join(map(str, self._paths))
             )
 
-    def intersection(self):
+    def intersection(self, starting_vertex=None):
         """
         Return the parametric path resulting from the intersection
         of all paths in the collection.
@@ -171,15 +172,26 @@ class PathCollection(object):
         pprint(grammar)
 
         parse_trees = map(
-            lambda path : ParseTree(path, grammar, self._scfg.starting_vertices),
+            lambda path : ParseTree(
+                path,
+                grammar,
+                self._scfg.starting_vertices if not(starting_vertex) else starting_vertex,
+                parametric=self._parametric
+            ),
             self._paths
         )
         intersection_tree = parse_trees[0].intersect(parse_trees[1:])
+        intersection_tree.write_to_file("intersection.gv")
+        for (n, parse_tree) in enumerate(parse_trees):
+            parse_tree.write_to_file("parse-tree-%i.gv" % n)
         parametric_path = intersection_tree.read_leaves()
-        return parametric_path
+        if not(starting_vertex):
+            return ParametricPathCollection([parametric_path], self._scfg, self._function_name)
+        else:
+            return PartialParametricPathCollection([parametric_path], self._scfg, self._function_name)
 
     def show_critical_points_in_file(self, filename=None, verbose=False):
-        path = self.intersection()
+        path = self.intersection()._paths[0]
         condition_lines=set()
         #doing this as a set to avoid highlighting the same lines multiple times
         for path_elem in path:
@@ -205,6 +217,70 @@ class PathCollection(object):
         file.writelines(lines)
         file.close()
 
+    def merge(self, other_path_collection):
+        """
+        Given another path collection, we maintain the same scfg and function name.
+        """
+        self._paths += other_path_collection._paths
+
+    def __sub__(self, other):
+        """
+        Gives a PartialPathCollection with path differences.
+        """
+
+        if len(self._paths) != len(other._paths):
+            raise Exception("Cannot form a difference of sets of paths when sets have different sizes.")
+
+        differences = []
+        for (n, path) in enumerate(self._paths):
+            # make sure we can subtract the paths
+            if len(path) < len(other._paths[n]):
+                raise Exception("To compute path_1 - path_2, path_2 cannot be longer than path_1.")
+            # make sure the shorter path is actually a subpath
+            for i in range(len(other._paths[n])):
+                if path[i] != other._paths[n][i]:
+                    raise Exception("path_1 - path_2 requires that path_2 is a subpath of path_1.")
+            differences.append(path[len(other._paths[n]):])
+
+        return PartialPathCollection(differences, self._scfg, self._function_name)
+
+class ParametricPathCollection(PathCollection):
+    """
+    Models a collection of paths that contain SCFG vertices.
+    """
+
+    def __init__(self, paths, scfg, function_name):
+        super(ParametricPathCollection, self).__init__(paths, scfg, function_name, parametric=True)
+
+class PartialPathCollection(PathCollection):
+    """
+    Models a collection of paths which do not start from the starting vertex of the SCFG.
+    """
+
+    def intersection(self):
+        """
+        Perform intersection, but such that the parse trees used
+        are generated starting from the beginning of each path (we assume the paths
+        start in the same place).
+        """
+        return super(PartialPathCollection, self).intersection(self._paths[0][0]._source_state)
+
+class PartialParametricPathCollection(PathCollection):
+    """
+    Models a collection of partial paths that contain SCFG vertices.
+    """
+
+    def __init__(self, paths, scfg, function_name):
+        super(PartialParametricPathCollection, self).__init__(paths, scfg, function_name, parametric=True)
+
+    def intersection(self):
+        """
+        Perform intersection, but such that the parse trees used
+        are generated starting from the beginning of each path (we assume the paths
+        start in the same place).
+        """
+        return super(PartialParametricPathCollection, self).intersection(self._paths[0][0]._source_state)
+
 class ObservationCollection(object):
     """
     A collection of observation objects.  Defines methods for transformation to a PathCollection object.
@@ -213,7 +289,7 @@ class ObservationCollection(object):
     def __init__(self, observations):
         self._observations = observations
 
-    def to_paths(self):
+    def to_paths(self, scfg=None):
         """
         Get the relevant SCFG for the observations,
         and then reconstruct the paths up to each observation through the
@@ -232,7 +308,7 @@ class ObservationCollection(object):
             ).function
         )
 
-        scfg = function_obj.get_graph()
+        scfg = function_obj.get_graph() if not(scfg) else scfg
         function_name = function_obj.fully_qualified_name
 
         # get the path length of the instrumentation point of this
