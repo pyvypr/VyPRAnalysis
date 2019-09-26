@@ -682,7 +682,7 @@ def observation(id,instrumentation_point=None,verdict=None,observed_value=None,a
     """
     connection = get_connection()
     if instrumentation_point==None or verdict==None or observed_value==None or atom_index==None or previous_condition==None:
-        str=connection.request('client/get_observation_by_id/%d/' % self.id)
+        str=connection.request('client/get_observation_by_id/%d/' % id)
         if str=="None": raise ValueError('there is no observation with given id')
         str=str[1:-1]
         d=json.loads(str)
