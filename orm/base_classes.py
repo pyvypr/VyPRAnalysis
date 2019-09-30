@@ -43,7 +43,7 @@ class Function(object):
         calls_dict=json.loads(str)
         calls_list=[]
         for call in calls_dict:
-            call_class=FunctionCall(call["id"],call["function"],call["time_of_call"],call["http_request"])
+            call_class=FunctionCall(call["id"],call["function"],call["time_of_call"], call["end_time_of_call"],call["http_request"])
             calls_list.append(call_class)
         return calls_list
 
@@ -54,7 +54,7 @@ class Function(object):
         calls_dict=json.loads(str)
         calls_list=[]
         for call in calls_dict:
-            call_class=FunctionCall(call["id"],call["function"],call["time_of_call"],call["http_request"])
+            call_class=FunctionCall(call["id"],call["function"],call["time_of_call"], call["end_time_of_call"],call["http_request"])
             calls_list.append(call_class)
         return calls_list
 
@@ -71,6 +71,7 @@ class Function(object):
     	asts = ast.parse(code)
     	print(asts.body)
     	qualifier_subsequence = get_qualifier_subsequence(func)
+	func = func.replace(":", ".")
     	function_name = func.split(".")
     	# find the function definition
     	print("finding function/method definition using qualifier chain %s" % function_name)
@@ -249,19 +250,21 @@ class FunctionCall(object):
     """class function_call represents the homonymous table in the database
     initialized by either just the id or all the values"""
 
-    def __init__(self,id,function,time_of_call,http_request):
+    def __init__(self,id,function,time_of_call,end_time_of_call,http_request):
         self.id=id
         self.function=function
         self.time_of_call=time_of_call
+        self.end_time_of_call=end_time_of_call
         self.http_request=http_request
 
     def __repr__(self):
-        return "<%s id=%i, function=%i, time_of_call=%s, http_request=%i>" %\
+        return "<%s id=%i, function=%i, time_of_call=%s, end_time_of_call=%s, http_request=%i>" %\
             (
                 self.__class__.__name__,
                 self.id,
                 self.function,
                 self.time_of_call,
+                self.end_time_of_call,
                 self.http_request
             )
 
@@ -324,6 +327,7 @@ def function_call(id):
         id=id,
         function=dict["function"],
         time_of_call=dict["time_of_call"],
+        end_time_of_call=dict["end_time_of_call"],
         http_request=dict["http_request"]
     )
 
@@ -500,7 +504,7 @@ class HTTPRequest(object):
         calls_dict=json.loads(str)
         calls_list=[]
         for call in calls_dict:
-            call_class=FunctionCall(call["id"],call["function"],call["time_of_call"],call["http_request"])
+            call_class=FunctionCall(call["id"],call["function"],call["time_of_call"], call["end_time_of_call"],call["http_request"])
             calls_list.append(call_class)
         return calls_list
 
@@ -644,7 +648,7 @@ class Observation(object):
         assignment_dict=json.loads(str)
         assignment_list=[]
         for a in assignment_dict:
-            assignment_class=assignment(a["id"])
+            assignment_class=Assignment(a["id"])
             assignment_list.append(assignment_class)
         return assignment_list
 
@@ -682,7 +686,7 @@ def observation(id,instrumentation_point=None,verdict=None,observed_value=None,a
     """
     connection = get_connection()
     if instrumentation_point==None or verdict==None or observed_value==None or atom_index==None or previous_condition==None:
-        str=connection.request('client/get_observation_by_id/%d/' % id)
+        str=connection.request('client/get_observation_by_id/%d/' % self.id)
         if str=="None": raise ValueError('there is no observation with given id')
         str=str[1:-1]
         d=json.loads(str)

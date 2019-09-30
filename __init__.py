@@ -36,7 +36,6 @@ def set_config_file(config_file_name='config.json'):
 
     set_server(server_url)
     set_vypr_path(vypr_path)
-    print(sys.path)
 
 def set_server(given_url):
     """
