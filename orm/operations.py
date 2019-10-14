@@ -217,6 +217,27 @@ class PathCollection(object):
         file.writelines(lines)
         file.close()
 
+    def critical_points_in_code(self):
+        path = self.intersection()._paths[0]
+        condition_lines=set()
+        #doing this as a set to avoid highlighting the same lines multiple times
+        for path_elem in path:
+            if type(path_elem) is VyPR.control_flow_graph.construction.CFGVertex:
+                condition_lines.add(path_elem._structure_obj.lineno)
+
+    #    print("condition lines", condition_lines)
+        function_name = self._function_name
+        last_dot=function_name.rfind('.')
+        if last_dot==-1: function_name=''
+        function_name=function_name[0:last_dot]
+        code_file_name=os.path.join(get_monitored_service_path(), function_name.replace('.','/')+'.py.inst')
+        file=open(code_file_name,"r")
+        lines=file.readlines()
+        for line_ind in condition_lines:
+            lines[line_ind-1]='*'+lines[line_ind-1]
+
+        return "".join(lines)
+
     def merge(self, other_path_collection):
         """
         Given another path collection, we maintain the same scfg and function name.
