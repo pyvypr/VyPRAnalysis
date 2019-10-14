@@ -169,7 +169,7 @@ class PathCollection(object):
         """
         grammar = self._scfg.derive_grammar()
 
-        pprint(grammar)
+        #pprint(grammar)
 
         parse_trees = map(
             lambda path : ParseTree(
@@ -320,20 +320,20 @@ class ObservationCollection(object):
 
         condition_sequences = []
         for observation in self._observations:
-            print("-"*100)
-            print("obtaining condition sequence for observation %s" % observation)
+            #print("-"*100)
+            #print("obtaining condition sequence for observation %s" % observation)
             condition_sequence = json.loads(connection.request("get_path_condition_sequence/%i/" % observation.id))["path_subchain"]
             condition_sequence = map(deserialise_condition, condition_sequence)
-            print(condition_sequence)
-            print("-"*100)
+            #print(condition_sequence)
+            #print("-"*100)
             condition_sequences.append(condition_sequence)
 
         paths = []
 
         for condition_sequence in condition_sequences:
             reconstructed_path = edges_from_condition_sequence(scfg, condition_sequence, reaching_path_length)
-            print(reconstructed_path)
+            #print(reconstructed_path)
             paths.append(reconstructed_path)
-            print("-"*100)
+            #print("-"*100)
 
         return PathCollection(paths, scfg, function_name)
