@@ -25,6 +25,9 @@ class CallTreeVertex(object):
 	def add_child(self, vertex):
 		self._children.append(vertex)
 
+	def get_callees(self):
+		return self._children
+
 class CallTree(object):
 	"""
 	Models a graph structure derived from the list of calls that happened
@@ -52,6 +55,14 @@ class CallTree(object):
 
 	def __repr__(self):
 		return "<CallTree>"
+
+	def get_direct_callees(self, call):
+		"""
+		Given a call, find its vertex and then return its children.
+		"""
+		relevant_vertex = filter(lambda vertex : vertex._call_obj != None and vertex._call_obj.id == call.id, self._vertices)[0]
+		direct_callees = relevant_vertex.get_callees()
+		return direct_callees
 
 	def process_vertex(self, root, calls):
 		"""
