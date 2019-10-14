@@ -181,9 +181,9 @@ class PathCollection(object):
             self._paths
         )
         intersection_tree = parse_trees[0].intersect(parse_trees[1:])
-        intersection_tree.write_to_file("intersection.gv")
-        for (n, parse_tree) in enumerate(parse_trees):
-            parse_tree.write_to_file("parse-tree-%i.gv" % n)
+        #intersection_tree.write_to_file("intersection.gv")
+        #for (n, parse_tree) in enumerate(parse_trees):
+        #    parse_tree.write_to_file("parse-tree-%i.gv" % n)
         parametric_path = intersection_tree.read_leaves()
         if not(starting_vertex):
             return ParametricPathCollection([parametric_path], self._scfg, self._function_name)
