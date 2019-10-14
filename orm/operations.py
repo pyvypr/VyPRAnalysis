@@ -237,12 +237,13 @@ class PathCollection(object):
         code_file_name=os.path.join(get_monitored_service_path(), function_name.replace('.','/')+'.py.inst')
         file=open(code_file_name,"r")
         lines=file.readlines()
-        # add line numbers
-        for n in range(len(lines)):
-            lines[n] = "%i  %s" % ((n+1), lines[n])
 
         for line_ind in condition_lines:
             lines[line_ind-1]='*'+lines[line_ind-1]
+
+        # add line numbers
+        for n in range(len(lines)):
+            lines[n] = "%i  %s" % ((n+1), lines[n])
 
         # trim line list
         lines = lines[min_line:max_line]
