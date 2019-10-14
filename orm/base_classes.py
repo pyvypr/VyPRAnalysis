@@ -200,7 +200,7 @@ class Binding(object):
         if str=="None":
             raise ValueError('no such property')
         else:
-            str=str[1:-1]
+            #str=str[1:-1]
             f_dict=json.loads(str)
             self.serialised_structure=f_dict["serialised_structure"]
 
