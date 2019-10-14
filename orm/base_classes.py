@@ -200,9 +200,12 @@ class Binding(object):
         if str=="None":
             raise ValueError('no such property')
         else:
-            #str=str[1:-1]
-            f_dict=json.loads(str)
-            self.serialised_structure=f_dict["serialised_structure"]
+            result = json.loads(str)
+            verdict_list = []
+            for v in result:
+                new_verdict = verdict(v["id"], v["binding"], v["verdict"], v["time_obtained"], v["function_call"], v["collapsing_atom"], v["collapsing_atom_sub_index"])
+                verdict_list.append(new_verdict)
+            return verdict_list
 
 
 def binding(id=None, binding_space_index=None, function=None, binding_statement_lines=None):
@@ -336,7 +339,7 @@ class Verdict(object):
     """class verdict has the same objects as the table verdict in the database
     initialized by either just the id or all the values
     function verdict.get_atom() returns the atom which the given verdict concerns"""
-    def __init__(self,id,binding=None,verdict=None,time_obtained=None,function_call=None,collapsing_atom=None):
+    def __init__(self,id,binding=None,verdict=None,time_obtained=None,function_call=None,collapsing_atom=None,collapsing_atom_sub_index=None):
         connection = get_connection()
         self.id=id
         if binding==None:
@@ -349,15 +352,17 @@ class Verdict(object):
             self.time_obtained=d["time_obtained"]
             self.function_call=d["function_call"]
             self.collapsing_atom=d["collapsing_atom"]
+            self.collapsing_atom_sub_index=d["collapsing_atom_sub_index"]
         else:
             self.binding=binding
             self.verdict=verdict
             self.time_obtained=time_obtained
             self.function_call=function_call
-            if collapsing_atom!=None: self.collapsing_atom=collapsing_atom
+            self.collapsing_atom=collapsing_atom
+            self.collapsing_atom_sub_index=collapsing_atom_sub_index
 
     def __repr__(self):
-        return "<%s id=%i, binding=%i, verdict=%i, time_obtained=%s, function_call=%i, collapsing_atom=%i>" %\
+        return "<%s id=%i, binding=%i, verdict=%i, time_obtained=%s, function_call=%i, collapsing_atom=%i, collapsing_atom_sub_index=%i>" %\
             (
                 self.__class__.__name__,
                 self.id,
@@ -365,7 +370,8 @@ class Verdict(object):
                 self.verdict,
                 self.time_obtained,
                 self.function_call,
-                self.collapsing_atom
+                self.collapsing_atom,
+                self.collapsing_atom_sub_index
             )
 
     def get_property_hash(self):
@@ -397,14 +403,14 @@ class Verdict(object):
             obs_list.append(obs_class)
         return obs_list
 
-def verdict(id=None, binding=None,verdict=None,time_obtained=None,function_call=None,collapsing_atom=None):
+def verdict(id=None, binding=None,verdict=None,time_obtained=None,function_call=None,collapsing_atom=None, collapsing_atom_sub_index):
     """
     Factory function for verdicts.
     """
 
     connection = get_connection()
 
-    if id!=None and binding!=None and verdict!=None and time_obtained!=None and function_call!=None and collapsing_atom!=None:
+    if id!=None and binding!=None and verdict!=None and time_obtained!=None and function_call!=None and collapsing_atom!=None and collapsing_atom_sub_index!=None:
 
         return Verdict(
             id=id,
@@ -412,7 +418,8 @@ def verdict(id=None, binding=None,verdict=None,time_obtained=None,function_call=
             verdict=verdict,
             time_obtained=time_obtained,
             function_call=function_call,
-            collapsing_atom=collapsing_atom
+            collapsing_atom=collapsing_atom,
+            collapsing_atom_sub_index=collapsing_atom_sub_index
         )
 
     elif id!=None:
@@ -428,7 +435,8 @@ def verdict(id=None, binding=None,verdict=None,time_obtained=None,function_call=
             verdict=d["verdict"],
             time_obtained=d["time_obtained"],
             function_call=d["function_call"],
-            collapsing_atom=d["collapsing_atom"]
+            collapsing_atom=d["collapsing_atom"],
+            collapsing_atom_sub_index=d["collapsing_atom_sub_index"]
         )
 
     else:
@@ -447,7 +455,7 @@ def list_verdicts_with_value(value):
     verdicts_dict=json.loads(str)
     verdicts_list=[]
     for v in verdicts_dict:
-        verdict_class=verdict(v["id"],v["binding"],v["time_obtained"],v["function_call"],v["collapsing_atom"])
+        verdict_class=verdict(v["id"],v["binding"],v["time_obtained"],v["function_call"],v["collapsing_atom"],v["collapsing_atom_sub_index"])
         verdicts_list.append(verdict_class)
     return verdicts_list
 
