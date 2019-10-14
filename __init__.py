@@ -55,12 +55,14 @@ def get_server():
     global server_url
     return server_url
 
-def get_connection():
+def get_connection(handshake=False):
     global connection
     if get_server() is None:
         raise Exception("No verdict server set.")
-    # try the handshake
-    response = connection.handshake()
+    if handshake:
+        # try the handshake - most of the time this will just be done
+        # when the server is set initially during configuration
+        response = connection.handshake()
     return connection
 
 def set_vypr_path(path):
