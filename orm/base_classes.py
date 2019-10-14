@@ -69,15 +69,15 @@ class Function(object):
     	# extract asts from the code in the file
     	code = "".join(open(os.path.join(location, file_name), "r").readlines())
     	asts = ast.parse(code)
-    	print(asts.body)
+    	#print(asts.body)
     	qualifier_subsequence = get_qualifier_subsequence(func)
 	func = func.replace(":", ".")
     	function_name = func.split(".")
     	# find the function definition
-    	print("finding function/method definition using qualifier chain %s" % function_name)
+    	#print("finding function/method definition using qualifier chain %s" % function_name)
     	actual_function_name = function_name[-1]
     	hierarchy = function_name[:-1]
-    	print(actual_function_name, hierarchy)
+    	#print(actual_function_name, hierarchy)
     	current_step = asts.body
     	# traverse sub structures
     	for step in hierarchy:
