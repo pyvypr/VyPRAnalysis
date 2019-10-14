@@ -671,21 +671,6 @@ class Observation(object):
             assignment_dict[a] = pickle.loads(assignment_dict[a][0])
         return assignment_dict
 
-    def verdict_severity(self):
-        """
-        TODO: modify to support mixed atoms.
-        """
-        formula=verdict(self.verdict).get_collapsing_atom().get_structure()
-        interval=formula._interval
-        lower=interval[0]
-        upper=interval[1]
-        x=float(self.observed_value)
-        #d is the distance from observed value to the nearest interval bound
-        d=min(abs(x-lower),abs(x-upper))
-        #sign=-1 if verdict value=0 and sign=1 if verdict is true
-        sign=-1+2*(formula.check(x))
-        return sign*d
-
     def get_instrumentation_point(self):
         return instrumentation_point(id=self.instrumentation_point)
 

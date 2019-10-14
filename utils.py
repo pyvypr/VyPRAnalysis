@@ -26,9 +26,6 @@ def get_qualifier_subsequence(function_qualifier):
 
 	return tokens
 
-def verdict_severity(obs):
-    return obs.verdict_severity()
-
 
 def write_scfg(scfg_object,file_name):
     from graphviz import Digraph
