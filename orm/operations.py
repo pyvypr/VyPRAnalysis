@@ -225,6 +225,10 @@ class PathCollection(object):
             if type(path_elem) is VyPR.control_flow_graph.construction.CFGVertex:
                 condition_lines.add(path_elem._structure_obj.lineno)
 
+        # determine range of the source code to show
+        min_line = min(condition_lines)-10
+        max_line = max(condition_lines)+10
+
     #    print("condition lines", condition_lines)
         function_name = self._function_name
         last_dot=function_name.rfind('.')
@@ -233,8 +237,15 @@ class PathCollection(object):
         code_file_name=os.path.join(get_monitored_service_path(), function_name.replace('.','/')+'.py.inst')
         file=open(code_file_name,"r")
         lines=file.readlines()
+        # add line numbers
+        for n in range(len(lines)):
+            lines[n] = "%i  %s" % ((n+1), lines[n])
+
         for line_ind in condition_lines:
             lines[line_ind-1]='*'+lines[line_ind-1]
+
+        # trim line list
+        lines = lines[min_line:max_line]
 
         return "".join(lines)
 
