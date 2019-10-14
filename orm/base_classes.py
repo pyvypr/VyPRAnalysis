@@ -403,7 +403,7 @@ class Verdict(object):
             obs_list.append(obs_class)
         return obs_list
 
-def verdict(id=None, binding=None,verdict=None,time_obtained=None,function_call=None,collapsing_atom=None, collapsing_atom_sub_index):
+def verdict(id=None, binding=None,verdict=None,time_obtained=None,function_call=None,collapsing_atom=None,collapsing_atom_sub_index=None):
     """
     Factory function for verdicts.
     """
