@@ -195,6 +195,7 @@ class Binding(object):
             )
 
     def get_verdicts(self):
+        connection = get_connection()
         str=connection.request('client/get_verdicts_from_binding/%s/' % hash)
         if str=="None":
             raise ValueError('no such property')
