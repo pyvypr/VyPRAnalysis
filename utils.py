@@ -2,8 +2,6 @@
 Module containing utility functions.
 """
 
-from graphviz import Digraph
-
 def get_qualifier_subsequence(function_qualifier):
 	"""
 	Given a fully qualified function name, iterate over it and find the file
@@ -33,6 +31,7 @@ def verdict_severity(obs):
 
 
 def write_scfg(scfg_object,file_name):
+	from graphviz import Digraph
     graph = Digraph()
     graph.attr("graph", splines="true", fontsize="10")
     shape = "rectangle"

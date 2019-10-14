@@ -9,7 +9,7 @@ import requests
 import urllib2
 from datetime import datetime
 import pickle
-from graphviz import Digraph
+#from graphviz import Digraph
 from pprint import pprint
 import sys
 import ast
