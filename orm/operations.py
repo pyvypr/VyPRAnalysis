@@ -4,139 +4,136 @@ Module that contains functions to perform operations with ORM classes.
 
 import requests
 import json
-from pprint import pprint
 import os
 
 # VyPR imports
-import VyPR.control_flow_graph.construction
-from VyPR.control_flow_graph.parse_tree import ParseTree
+import VyPR.SCFG.construction
+from VyPR.SCFG.parse_tree import ParseTree
 
 # VyPRAnalysis imports
 from VyPRAnalysis import get_server, get_connection, get_monitored_service_path
 from VyPRAnalysis.orm.base_classes import function, function_call, verdict, observation, instrumentation_point
 from VyPRAnalysis.path_reconstruction import edges_from_condition_sequence, deserialise_condition
 
-def get_parametric_path(obs_id_list,instrumentation_point_id=None):
-    #instrumentation_point optional -> get it from an observation in the list
-    if instrumentation_point_id==None:
-        instrumentation_point_id=observation(obs_id_list[0]).instrumentation_point
 
-    #checking if all the observations are made at the same point
+def get_parametric_path(obs_id_list, instrumentation_point_id=None):
+    # instrumentation_point optional -> get it from an observation in the list
+    if instrumentation_point_id == None:
+        instrumentation_point_id = observation(obs_id_list[0]).instrumentation_point
+
+    # checking if all the observations are made at the same point
     for id in obs_id_list:
-        obs=observation(id)
-        if obs.instrumentation_point!=instrumentation_point_id:
+        obs = observation(id)
+        if obs.instrumentation_point != instrumentation_point_id:
             raise ValueError('the observations must have the same instrumentation point')
 
-    data1={"observation_ids":obs_id_list, "instrumentation_point_id":instrumentation_point_id}
-    req=requests.post(url=get_server()+'get_parametric_path/',data=json.dumps(data1))
+    data1 = {"observation_ids": obs_id_list, "instrumentation_point_id": instrumentation_point_id}
+    req = requests.post(url=get_server() + 'get_parametric_path/', data=json.dumps(data1))
 
     return req.text
 
 
-def get_intersection_from_observations(function_name,obs_id_list,inst_point=None):
+def get_intersection_from_observations(function_name, obs_id_list, inst_point=None):
+    if inst_point == None:
+        inst_point = observation(obs_id_list[0]).instrumentation_point
 
-    if inst_point==None:
-        inst_point=observation(obs_id_list[0]).instrumentation_point
-
-    #checking if all the observations are made at the same point
+    # checking if all the observations are made at the same point
     for id in obs_id_list:
-        obs=observation(id)
-        if obs.instrumentation_point!=inst_point:
+        obs = observation(id)
+        if obs.instrumentation_point != inst_point:
             raise ValueError('the observations must have the same instrumentation point')
 
-    f=function(fully_qualified_name=function_name)
-    subchain_text=get_parametric_path(obs_id_list,inst_point)
-#    print(subchain_text)
-    subchain_dict=json.loads(subchain_text)
-#    pprint(subchain_dict)
+    f = function(fully_qualified_name=function_name)
+    subchain_text = get_parametric_path(obs_id_list, inst_point)
+    #    print(subchain_text)
+    subchain_dict = json.loads(subchain_text)
+    #    pprint(subchain_dict)
 
-    paths=[]
-    seq=subchain_dict["intersection_condition_sequence"]
-    scfg=f.get_graph()
-    ipoint=instrumentation_point(inst_point)
+    seq = subchain_dict["intersection_condition_sequence"]
+    scfg = f.get_graph()
+    ipoint = instrumentation_point(inst_point)
 
-    intersection_path=edges_from_condition_sequence(
+    intersection_path = edges_from_condition_sequence(
         scfg,
         map(deserialise_condition, seq[1:]),
         ipoint.reaching_path_length
     )
-#    print("intersection with condition sequence \n%s\n path length %i is\n %s" % (str(seq[1:]), ipoint.reaching_path_length, str(intersection_path)))
-#    edit_code(intersection_path)
-#    print("------------------------------------------------")
-#    print(seq)
     return intersection_path
 
 
-def get_paths_from_observations(function_name,obs_id_list,inst_point=None):
+def get_paths_from_observations(function_name, obs_id_list, inst_point=None):
     """
     returns a list of paths taken before each of the given observations
     """
 
-    if inst_point==None:
-        inst_point=observation(obs_id_list[0]).instrumentation_point
+    if inst_point == None:
+        inst_point = observation(obs_id_list[0]).instrumentation_point
 
-    #checking if all the observations are made at the same point
+    # checking if all the observations are made at the same point
     for id in obs_id_list:
-        obs=observation(id)
-        if obs.instrumentation_point!=inst_point:
+        obs = observation(id)
+        if obs.instrumentation_point != inst_point:
             raise ValueError('the observations must have the same instrumentation point')
 
-    f=function(fully_qualified_name=function_name)
-    subchain_text=get_parametric_path(obs_id_list,inst_point)
-    subchain_dict=json.loads(subchain_text)
-    #pprint(subchain_dict)
+    f = function(fully_qualified_name=function_name)
+    subchain_text = get_parametric_path(obs_id_list, inst_point)
+    subchain_dict = json.loads(subchain_text)
 
-    paths=[]
-    seq=subchain_dict["intersection_condition_sequence"]
+    paths = []
+    seq = subchain_dict["intersection_condition_sequence"]
 
     for id in obs_id_list:
 
-        subchain=[]
-        ind=0
+        subchain = []
+        ind = 0
 
-        while ind<len(seq):
-            if seq[ind]=="parameter":
-                cond=((subchain_dict["parameter_maps"])["0"])[str(obs_id_list.index(id))]
+        while ind < len(seq):
+            if seq[ind] == "parameter":
+                cond = ((subchain_dict["parameter_maps"])["0"])[str(obs_id_list.index(id))]
                 for cond_elem in cond:
-#                    print(cond_elem)
+                    #                    print(cond_elem)
                     subchain.append(deserialise_condition(cond_elem))
             else:
                 subchain.append(seq[ind])
-            ind+=1
+            ind += 1
 
         subchain = subchain[1:]
-        scfg=f.get_graph()
-        ipoint=instrumentation_point(inst_point)
-        path=edges_from_condition_sequence(scfg,subchain,ipoint.reaching_path_length)
+        scfg = f.get_graph()
+        ipoint = instrumentation_point(inst_point)
+        path = edges_from_condition_sequence(scfg, subchain, ipoint.reaching_path_length)
         paths.append(path)
 
     return paths
 
+
 def list_observations():
     connection = get_connection()
-    str=connection.request('client/list_observations/')
-    if str=="None":
+    str = connection.request('client/list_observations/')
+    if str == "None":
         raise ValueError('no observations')
         return
-    obs_dict=json.loads(str)
-    obs_list=[]
+    obs_dict = json.loads(str)
+    obs_list = []
     for o in obs_dict:
-        obs_class=observation(o["id"],o["instrumentation_point"],o["verdict"],o["observed_value"],o["atom_index"],o["previous_condition"])
+        obs_class = observation(o["id"], o["instrumentation_point"], o["verdict"], o["observed_value"], o["atom_index"],
+                                o["previous_condition"])
         obs_list.append(obs_class)
     return obs_list
 
+
 def list_functions():
     connection = get_connection()
-    str=connection.request('client/list_functions/')
-    if str=="None":
+    str = connection.request('client/list_functions/')
+    if str == "None":
         raise ValueError('no functions')
         return
-    f_dict=json.loads(str)
-    f_list=[]
+    f_dict = json.loads(str)
+    f_list = []
     for f in f_dict:
-        f_class=function(f["id"],f["fully_qualified_name"],f["property"])
+        f_class = function(f["id"], f["fully_qualified_name"], f["property"])
         f_list.append(f_class)
     return f_list
+
 
 """
 Path analysis classes.
@@ -156,11 +153,11 @@ class PathCollection(object):
         self._parametric = parametric
 
     def __repr__(self):
-        return "<%s paths=%s>" %\
-            (
-                self.__class__.__name__,
-                "\n\n".join(map(str, self._paths))
-            )
+        return "<%s paths=%s>" % \
+               (
+                   self.__class__.__name__,
+                   "\n\n".join(map(str, self._paths))
+               )
 
     def intersection(self, starting_vertex=None):
         """
@@ -169,81 +166,74 @@ class PathCollection(object):
         """
         grammar = self._scfg.derive_grammar()
 
-        #pprint(grammar)
-
         parse_trees = map(
-            lambda path : ParseTree(
+            lambda path: ParseTree(
                 path,
                 grammar,
-                self._scfg.starting_vertices if not(starting_vertex) else starting_vertex,
+                self._scfg.starting_vertices if not (starting_vertex) else starting_vertex,
                 parametric=self._parametric
             ),
             self._paths
         )
         intersection_tree = parse_trees[0].intersect(parse_trees[1:])
-        #intersection_tree.write_to_file("intersection.gv")
-        #for (n, parse_tree) in enumerate(parse_trees):
-        #    parse_tree.write_to_file("parse-tree-%i.gv" % n)
         parametric_path = intersection_tree.read_leaves()
-        if not(starting_vertex):
+        if not (starting_vertex):
             return ParametricPathCollection([parametric_path], self._scfg, self._function_name)
         else:
             return PartialParametricPathCollection([parametric_path], self._scfg, self._function_name)
 
     def show_critical_points_in_file(self, filename=None, verbose=False):
         path = self.intersection()._paths[0]
-        condition_lines=set()
-        #doing this as a set to avoid highlighting the same lines multiple times
+        condition_lines = set()
+        # doing this as a set to avoid highlighting the same lines multiple times
         for path_elem in path:
             if type(path_elem) is VyPR.control_flow_graph.construction.CFGVertex:
                 condition_lines.add(path_elem._structure_obj.lineno)
 
-    #    print("condition lines", condition_lines)
         function_name = self._function_name
-        last_dot=function_name.rfind('.')
-        if last_dot==-1: function_name=''
-        function_name=function_name[0:last_dot]
-        code_file_name=os.path.join(get_monitored_service_path(), function_name.replace('.','/')+'.py.inst')
-        file=open(code_file_name,"r")
-        lines=file.readlines()
+        last_dot = function_name.rfind('.')
+        if last_dot == -1: function_name = ''
+        function_name = function_name[0:last_dot]
+        code_file_name = os.path.join(get_monitored_service_path(), function_name.replace('.', '/') + '.py.inst')
+        file = open(code_file_name, "r")
+        lines = file.readlines()
         for line_ind in condition_lines:
-            lines[line_ind-1]='*'+lines[line_ind-1]
+            lines[line_ind - 1] = '*' + lines[line_ind - 1]
 
         if verbose:
             for line in lines:
                 print(line.rstrip())
-        target_file = code_file_name+'_changed' if not(filename) else filename
-        file=open(target_file,"w")
+        target_file = code_file_name + '_changed' if not (filename) else filename
+        file = open(target_file, "w")
         file.writelines(lines)
         file.close()
 
     def critical_points_in_code(self):
         path = self.intersection()._paths[0]
-        condition_lines=set()
-        #doing this as a set to avoid highlighting the same lines multiple times
+        condition_lines = set()
+        # doing this as a set to avoid highlighting the same lines multiple times
         for path_elem in path:
             if type(path_elem) is VyPR.control_flow_graph.construction.CFGVertex:
                 condition_lines.add(path_elem._structure_obj.lineno)
 
         # determine range of the source code to show
-        min_line = min(condition_lines)-10
-        max_line = max(condition_lines)+10
+        min_line = min(condition_lines) - 10
+        max_line = max(condition_lines) + 10
 
-    #    print("condition lines", condition_lines)
         function_name = self._function_name
-        last_dot=function_name.rfind('.')
-        if last_dot==-1: function_name=''
-        function_name=function_name[0:last_dot]
-        code_file_name=os.path.join(get_monitored_service_path(), function_name.replace('.','/')+'.py.inst')
-        file=open(code_file_name,"r")
-        lines=file.readlines()
+        last_dot = function_name.rfind('.')
+        if last_dot == -1: function_name = ''
+        function_name = function_name[0:last_dot]
+        code_file_name = os.path.join(get_monitored_service_path(), function_name.replace('.', '/') + '.py.inst')
+        file = open(code_file_name, "r")
+        lines = file.readlines()
 
         for line_ind in condition_lines:
-            lines[line_ind-1]='*'+lines[line_ind-1]
+            lines[line_ind - 1] = '*' + lines[line_ind - 1]
 
         # add line numbers
         for n in range(len(lines)):
-            lines[n] = "%i  %s" % ((n+1), lines[n])
+            lines[n] = "%i  %s" % ((n + 1), lines[n])
 
         # trim line list
         lines = lines[min_line:max_line]
@@ -277,6 +267,7 @@ class PathCollection(object):
 
         return PartialPathCollection(differences, self._scfg, self._function_name)
 
+
 class ParametricPathCollection(PathCollection):
     """
     Models a collection of paths that contain SCFG vertices.
@@ -284,6 +275,7 @@ class ParametricPathCollection(PathCollection):
 
     def __init__(self, paths, scfg, function_name):
         super(ParametricPathCollection, self).__init__(paths, scfg, function_name, parametric=True)
+
 
 class PartialPathCollection(PathCollection):
     """
@@ -297,6 +289,7 @@ class PartialPathCollection(PathCollection):
         start in the same place).
         """
         return super(PartialPathCollection, self).intersection(self._paths[0][0]._source_state)
+
 
 class PartialParametricPathCollection(PathCollection):
     """
@@ -313,6 +306,7 @@ class PartialParametricPathCollection(PathCollection):
         start in the same place).
         """
         return super(PartialParametricPathCollection, self).intersection(self._paths[0][0]._source_state)
+
 
 class ObservationCollection(object):
     """
@@ -341,7 +335,7 @@ class ObservationCollection(object):
             ).function
         )
 
-        scfg = function_obj.get_graph() if not(scfg) else scfg
+        scfg = function_obj.get_graph() if not (scfg) else scfg
         function_name = function_obj.fully_qualified_name
 
         # get the path length of the instrumentation point of this
@@ -353,20 +347,21 @@ class ObservationCollection(object):
 
         condition_sequences = []
         for observation in self._observations:
-            #print("-"*100)
-            #print("obtaining condition sequence for observation %s" % observation)
-            condition_sequence = json.loads(connection.request("get_path_condition_sequence/%i/" % observation.id))["path_subchain"]
+            # print("-"*100)
+            # print("obtaining condition sequence for observation %s" % observation)
+            condition_sequence = json.loads(connection.request("get_path_condition_sequence/%i/" % observation.id))[
+                "path_subchain"]
             condition_sequence = map(deserialise_condition, condition_sequence)
-            #print(condition_sequence)
-            #print("-"*100)
+            # print(condition_sequence)
+            # print("-"*100)
             condition_sequences.append(condition_sequence)
 
         paths = []
 
         for condition_sequence in condition_sequences:
             reconstructed_path = edges_from_condition_sequence(scfg, condition_sequence, reaching_path_length)
-            #print(reconstructed_path)
+            # print(reconstructed_path)
             paths.append(reconstructed_path)
-            #print("-"*100)
+            # print("-"*100)
 
         return PathCollection(paths, scfg, function_name)

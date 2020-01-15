@@ -5,14 +5,7 @@ Marta Han - University of Zagreb, CERN
 Joshua Dawes - University of Manchester, CERN.
 """
 import json
-import requests
-import urllib2
-from datetime import datetime
-import pickle
-#from graphviz import Digraph
-from pprint import pprint
 import sys
-import ast
 
 from VyPRAnalysis.http_requests import VerdictServerConnection
 
@@ -23,6 +16,7 @@ vypr_path = "VyPRAnalysis"
 monitored_service_path = None
 
 sys.path.append(vypr_path)
+
 
 def set_config_file(config_file_name='config.json'):
     """
@@ -37,13 +31,14 @@ def set_config_file(config_file_name='config.json'):
     set_server(server_url)
     set_vypr_path(vypr_path)
 
+
 def set_server(given_url):
     """
     server_url is a global variable which can be changed
     by passing a string to the set_server() function
     """
     global server_url, connection
-    server_url=given_url
+    server_url = given_url
     # try to connect
     connection = VerdictServerConnection(server_url)
     try:
@@ -51,9 +46,11 @@ def set_server(given_url):
     except:
         print("Failed to connect to server.")
 
+
 def get_server():
     global server_url
     return server_url
+
 
 def get_connection(handshake=False):
     global connection
@@ -65,10 +62,12 @@ def get_connection(handshake=False):
         response = connection.handshake()
     return connection
 
+
 def set_vypr_path(path):
     global vypr_path
     vypr_path = path
     sys.path.append(vypr_path)
+
 
 def get_monitored_service_path():
     global monitored_service_path
@@ -81,4 +80,3 @@ Import all functions from various modules.
 
 from utils import *
 from orm import *
- 
