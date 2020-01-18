@@ -33,10 +33,10 @@ def write_scfg(scfg_object, file_name):
     graph.attr("graph", splines="true", fontsize="10")
     shape = "rectangle"
     for vertex in scfg_object.vertices:
-        graph.node(str(id(vertex)), str(vertex._name_changed), shape=shape)
+        graph.node(str(id(vertex)), "%s\n%s" % (str(vertex._name_changed), vertex), shape=shape)
         for edge in vertex.edges:
-            graph.edge(str(id(vertex)), str(id(edge._target_state)), "%s - %s - path length = %s" % (
-                str(edge._operates_on), str(edge._condition), str(edge._target_state._path_length)))
+            graph.edge(str(id(vertex)), str(id(edge._target_state)), "%s - %s - path length = %s\n%s" % (
+                str(edge._operates_on), str(edge._condition), str(edge._target_state._path_length), edge))
     graph.render(file_name)
     print("Writing SCFG to file '%s'." % file_name)
 

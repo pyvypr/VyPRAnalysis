@@ -714,6 +714,18 @@ class Observation(object):
 
     def get_instrumentation_point(self):
         return instrumentation_point(id=self.instrumentation_point)
+    
+    def reconstruct_reaching_path(self, scfg):
+        """Reconstruct the sequence of edges to reach this observation through the SCFG given."""
+        connection = get_connection()
+        json_result = connection.request('get_path_condition_sequence/%i/' % self.id)
+        result_dict = json.loads(json_result)
+        path_condition_list = result_dict["path_subchain"]
+        path_length = result_dict["path_length"]
+        #trimmed_path_condition_list = list(reversed(path_condition_list[0:-1]))
+        # TODO: at the moment, I don't think we need to deserialise...
+        edges = edges_from_condition_sequence(scfg, path_condition_list, path_length)
+        return edges
 
 
 def observation(id, instrumentation_point=None, verdict=None, observed_value=None, observation_time=None,

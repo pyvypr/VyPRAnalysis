@@ -42,8 +42,8 @@ def edges_from_condition_sequence(scfg, path_subchain, instrumentation_point_pat
             if curr._name_changed == ["conditional"]:
                 #print("traversing conditional %s with condition %s" % (curr, path_subchain[condition_index]))
                 # path_subchain[condition_index] is the index of the branch to follow if we're dealing with a conditional
-                path.append(curr.edges[path_subchain[condition_index]])
-                curr = curr.edges[path_subchain[condition_index]]._target_state
+                path.append(curr.edges[int(path_subchain[condition_index])])
+                curr = curr.edges[int(path_subchain[condition_index])]._target_state
                 condition_index += 1
             elif curr._name_changed == ["loop"]:
                 #print("traversing loop %s with condition %s" % (curr, path_subchain[condition_index]))
@@ -145,9 +145,11 @@ def edges_from_condition_sequence(scfg, path_subchain, instrumentation_point_pat
 
     # traverse the remainder of the branch using the path length of the instrumentation point
     # that generated the observation we're looking at
-    #print("starting remainder of traversal from vertex %s" % curr)
+    # print("starting remainder of traversal from vertex %s" % curr)
     if instrumentation_point_path_length != -1:
-        limit = instrumentation_point_path_length-1 if len(path_subchain) > 0 else instrumentation_point_path_length
+        # the length here needs to be changed depending on what the most recent construct the graph encountered was
+        # or we need to move the vertex back one in the case that it advanced "too far".
+        limit = instrumentation_point_path_length if len(path_subchain) > 0 else instrumentation_point_path_length
         for i in range(limit):
             #path.append(curr)
             path.append(curr.edges[0])
