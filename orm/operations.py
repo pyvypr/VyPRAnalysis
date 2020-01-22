@@ -28,7 +28,7 @@ def get_parametric_path(obs_id_list, instrumentation_point_id=None):
             raise ValueError('the observations must have the same instrumentation point')
 
     data1 = {"observation_ids": obs_id_list, "instrumentation_point_id": instrumentation_point_id}
-    req = requests.post(url=get_server() + 'get_parametric_path/', data=json.dumps(data1))
+    req = requests.post(url=get_server() + 'client/get_parametric_path/', data=json.dumps(data1))
 
     return req.text
 
@@ -106,28 +106,13 @@ def get_paths_from_observations(function_name, obs_id_list, inst_point=None):
     return paths
 
 
-def list_observations():
-    connection = get_connection()
-    str = connection.request('client/list_observations/')
-    if str == "None":
-        raise ValueError('no observations')
-        return
-    obs_dict = json.loads(str)
-    obs_list = []
-    for o in obs_dict:
-        obs_class = observation(o["id"], o["instrumentation_point"], o["verdict"], o["observed_value"], o["atom_index"],
-                                o["previous_condition"])
-        obs_list.append(obs_class)
-    return obs_list
-
-
 def list_functions():
     connection = get_connection()
-    str = connection.request('client/list_functions/')
-    if str == "None":
+    result = connection.request('client/function/')
+    if result == "None":
         raise ValueError('no functions')
         return
-    f_dict = json.loads(str)
+    f_dict = json.loads(result)
     f_list = []
     for f in f_dict:
         f_class = function(f["id"], f["fully_qualified_name"], f["property"])
