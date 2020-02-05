@@ -424,13 +424,13 @@ class Transaction(object):
     initialized as trans(id=1) or trans(time_of_transaction=t)
     """
 
-    def __init__(self, id=None, time_of_transaction=None):
+    def __init__(self, id=None, time_of_transaction=None, time_lower_bound=None, time_upper_bound=None):
         connection = get_connection()
         if id != None:
             self.id = id
             if time_of_transaction == None:
                 result = connection.request('client/transaction/id/%d/' % self.id)
-                if result == "None": raise ValueError('no transaction requests in the database with given ID')
+                if result == "None": raise ValueError('no transaction in the database with given ID')
                 d = json.loads(result)
                 self.time_of_transaction = d["time_of_transaction"]
             else:
@@ -438,9 +438,18 @@ class Transaction(object):
         elif time_of_transaction != None:
             self.time_of_transaction = time_of_transaction
             result = connection.request('client/transaction/time/%s/' % self.time_of_transaction)
-            if result == "None": raise ValueError('no transaction requests in the database with given time')
+            if result == "None": raise ValueError('no transaction in the database with given time')
             d = json.loads(result)
             self.id = d["id"]
+        elif time_lower_bound != None and time_upper_bound != None:
+            # we've been given a time interval
+            result = connection.request('client/transaction/time/between/%s/%s/' % (time_lower_bound, time_upper_bound))
+            if result == "None": raise ValueError('No transaction found starting in the time interval %s - %s' %
+                                                  (time_lower_bound, time_upper_bound))
+            print(result)
+            d = json.loads(result)
+            self.id = d["id"]
+            self.time_of_transaction = d["time_of_transaction"]
         else:
             raise ValueError('either id or time_of_transaction argument required')
 
@@ -462,11 +471,11 @@ class Transaction(object):
         return "<%s id=%i time_of_transaction=%s>" % (self.__class__.__name__, self.id, str(self.time_of_transaction))
 
 
-def transaction(id=None, time_of_transaction=None):
+def transaction(id=None, time_of_transaction=None, time_lower_bound=None, time_upper_bound=None):
     """
     Factory function for transactions.
     """
-    return Transaction(id, time_of_transaction)
+    return Transaction(id, time_of_transaction, time_lower_bound, time_upper_bound)
 
 
 class Atom(object):

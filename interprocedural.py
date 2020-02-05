@@ -2,6 +2,8 @@
 Module for inter-procedural analysis.
 Prototype stage.
 """
+from .orm import transaction
+import pprint
 
 
 def scfg_element_to_dot(scfg_obj):
@@ -32,18 +34,24 @@ class CallTree(object):
     Note: we have a tree because, even with recursion, vertices are calls, and not
     actual functions, so we cannot have cycles."""
 
-    def __init__(self, http_request):
-        """Given an HTTP request, get all calls that happened during it and construct a tree."""
+    def __init__(self, transaction):
+        """
+        Given transaction, get all calls that happened during it and construct a tree.
+        Take into account the fact that multiple machines may have generated calls, in which case, if we process
+        a call with no child calls, we search for a transaction occurring during that call from another machine.
+        """
 
         self._vertices = []
 
-        self._all_calls = http_request.get_calls()
+        self._all_calls = transaction.get_calls()
         self._all_calls.sort(key=lambda call: call.time_of_call)
 
-        # construct empty root
-        self._root = CallTreeVertex(self)
+        pprint.pprint(self._all_calls)
 
-        # construct the tree, starting at the empty root
+        # construct root containing the transaction
+        self._root = CallTreeVertex(self, transaction)
+
+        # construct the tree, starting at the transaction root
         self.process_vertex(self._root, self._all_calls)
 
     def __repr__(self):
@@ -83,7 +91,11 @@ class CallTree(object):
             # find the end time of the root, and then find all calls in the list
             # whose start times are before that
             end_time = earliest_call.end_time_of_call
-            callees = list(filter(lambda call: call.time_of_call < end_time, calls))
+            start_time = earliest_call.time_of_call
+            # note: start time is necessarily before end time so we only need to check the bounds
+            callees = list(filter(
+                lambda call: call.time_of_call > start_time and call.end_time_of_call < end_time, calls
+            ))
 
             # expand the subtree
             self.process_vertex(new_vertex, callees)
