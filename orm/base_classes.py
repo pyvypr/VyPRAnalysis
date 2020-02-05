@@ -461,6 +461,12 @@ class Transaction(object):
     def __repr__(self):
         return "<%s id=%i time_of_transaction=%s>" % (self.__class__.__name__, self.id, str(self.time_of_transaction))
 
+    def __eq__(self, other):
+        if type(other) is not Transaction:
+            return False
+        else:
+            return self.id == other.id
+
 
 def transaction(id=None, time_of_transaction=None, time_lower_bound=None, time_upper_bound=None):
     """

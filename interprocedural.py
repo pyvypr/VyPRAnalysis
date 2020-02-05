@@ -2,7 +2,7 @@
 Module for inter-procedural analysis.
 Prototype stage.
 """
-from .orm import transaction
+from .orm import transaction, FunctionCall
 import pprint
 
 
@@ -27,6 +27,25 @@ class CallTreeVertex(object):
 
     def get_callees(self):
         return self._children
+
+    def get_subtree_roots_in_interval(self, time_lower_bound, time_upper_bound):
+        """
+        Given a lower and upper bound on time, find the children of this vertex which are roots
+        of subtrees whose timestamps fall within the interval given.
+        :param time_lower_bound:
+        :param time_upper_bound:
+        :return: the roots of subtrees whose root vertex falls within the time interval given.
+        """
+        final_list = []
+        for child in self._children:
+            if type(child._call_obj) is FunctionCall:
+                if (child._call_obj.time_of_call >= time_lower_bound
+                    and child._call_obj.end_time_of_call <= time_upper_bound):
+                    final_list.append(child)
+            else:
+                if time_lower_bound <= child._call_obj.time_of_transaction <= time_upper_bound:
+                    final_list.append(child)
+        return final_list
 
 
 class CallTree(object):
@@ -60,12 +79,64 @@ class CallTree(object):
     def add_vertex(self, vertex):
         self._vertices.append(vertex)
 
+    def get_vertex_from_call(self, call):
+        """
+        :param call:
+        :return: CallTreeVertex whose call object is call
+        """
+        # find the vertex that holds the given call
+        relevant_vertices = \
+            list(filter(
+                lambda vertex: (vertex._call_obj != None and type(vertex._call_obj) is FunctionCall
+                                and vertex._call_obj.id == call.id), self._vertices
+            ))
+
+        if len(relevant_vertices) != 1:
+            raise Exception("The call %s wasn't found in the call tree." % call)
+        else:
+            relevant_vertex = relevant_vertices[0]
+
+        return relevant_vertex
+
+    def get_subtree_roots_in_interval(self, call, time_lower_bound, time_upper_bound):
+        """
+        Given a time interval and a call, determine the child vertices that fit within a given time interval.
+        Note: this time interval will usually be derived from an observation occurring during that call.
+        :param time_lower_bound:
+        :param time_upper_bound:
+        :return: a list of call tree vertices whose call objects occur inside the time interval given.
+        """
+        relevant_vertex = self.get_vertex_from_call(call)
+        valid_children = relevant_vertex.get_subtree_roots_in_interval(time_lower_bound, time_upper_bound)
+        return valid_children
+
     def get_direct_callees(self, call):
         """Given a call, find its vertex and then return its children."""
-        relevant_vertex = \
-        list(filter(lambda vertex: vertex._call_obj != None and vertex._call_obj.id == call.id, self._vertices))[0]
+        relevant_vertex = self.get_vertex_from_call(call)
         direct_callees = list(map(lambda vertex : vertex._call_obj, relevant_vertex.get_callees()))
         return direct_callees
+
+    def get_reachable(self, call):
+        """
+        Given a call, perform stack-based traversal to find all reachable calls in the tree.
+        :param call:
+        :return:
+        """
+        relevant_vertex = self.get_vertex_from_call(call)
+
+        stack = [relevant_vertex]
+        final_list_of_callees = []
+        while len(stack) > 0:
+            # get the top of the stack
+            current_call = stack[-1]
+            stack.remove(current_call)
+            # get the direct callees
+            direct_callees = current_call.get_callees()
+            final_list_of_callees += list(map(lambda vertex : vertex._call_obj, current_call.get_callees()))
+            stack += direct_callees
+
+        return final_list_of_callees
+
 
     def process_vertex(self, root, calls):
         """Given a root and a list of child calls, construct the subtree rooted here."""
@@ -108,6 +179,7 @@ class CallTree(object):
                 calls = list(set(calls) - set(callees))
 
             else:
+                # there are no callees remaining, so
                 # there are no callees, so look for a transaction
                 print("looking for a transaction within the times %s and %s" %
                       (earliest_call.time_of_call, earliest_call.end_time_of_call))
