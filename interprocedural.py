@@ -65,8 +65,6 @@ class CallTree(object):
         self._all_calls = transaction.get_calls()
         self._all_calls.sort(key=lambda call: call.time_of_call)
 
-        pprint.pprint(self._all_calls)
-
         # construct root containing the transaction
         self._root = CallTreeVertex(self, transaction)
 
@@ -87,7 +85,7 @@ class CallTree(object):
         # find the vertex that holds the given call
         relevant_vertices = \
             list(filter(
-                lambda vertex: (vertex._call_obj != None and type(vertex._call_obj) is FunctionCall
+                lambda vertex: (vertex._call_obj != None and type(vertex._call_obj) is type(call)
                                 and vertex._call_obj.id == call.id), self._vertices
             ))
 
@@ -124,15 +122,18 @@ class CallTree(object):
         """
         relevant_vertex = self.get_vertex_from_call(call)
 
-        stack = [relevant_vertex]
+        stack = relevant_vertex.get_callees()
         final_list_of_callees = []
         while len(stack) > 0:
             # get the top of the stack
-            current_call = stack[-1]
-            stack.remove(current_call)
+            current_vertex = stack.pop()
+            # add this to the list of reachable vertices
+            final_list_of_callees.append(current_vertex._call_obj)
             # get the direct callees
-            direct_callees = current_call.get_callees()
-            final_list_of_callees += list(map(lambda vertex : vertex._call_obj, current_call.get_callees()))
+            direct_callees = current_vertex.get_callees()
+            # add to a final list
+            final_list_of_callees += list(map(lambda vertex : vertex._call_obj, current_vertex.get_callees()))
+            # add the vertices to a stack
             stack += direct_callees
 
         return final_list_of_callees
@@ -181,8 +182,6 @@ class CallTree(object):
             else:
                 # there are no callees remaining, so
                 # there are no callees, so look for a transaction
-                print("looking for a transaction within the times %s and %s" %
-                      (earliest_call.time_of_call, earliest_call.end_time_of_call))
                 relevant_transactions = transaction(
                     time_lower_bound=earliest_call.time_of_call, time_upper_bound=earliest_call.end_time_of_call
                 )
@@ -191,8 +190,6 @@ class CallTree(object):
                     # construct the call tree of the transaction and attach it to new_vertex as a subtree
                     subtree = CallTree(relevant_transactions[0])
                     self.add_subtree_to_vertex(new_vertex, subtree)
-                else:
-                    print("None found - no other machine generated data during the call %s" % earliest_call)
 
     def add_subtree_to_vertex(self, vertex, subtree):
         """
