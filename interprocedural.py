@@ -97,11 +97,41 @@ class CallTree(object):
                 lambda call: call.time_of_call > start_time and call.end_time_of_call < end_time, calls
             ))
 
-            # expand the subtree
-            self.process_vertex(new_vertex, callees)
+            if len(callees) > 0:
 
-            # remove the calls we've just processed
-            calls = list(set(calls) - set(callees))
+                # process the callees by constructing a new subtree
+
+                # expand the subtree
+                self.process_vertex(new_vertex, callees)
+
+                # remove the calls we've just processed
+                calls = list(set(calls) - set(callees))
+
+            else:
+                # there are no callees, so look for a transaction
+                print("looking for a transaction within the times %s and %s" %
+                      (earliest_call.time_of_call, earliest_call.end_time_of_call))
+                relevant_transactions = transaction(
+                    time_lower_bound=earliest_call.time_of_call, time_upper_bound=earliest_call.end_time_of_call
+                )
+
+                if len(relevant_transactions) != 0:
+                    # construct the call tree of the transaction and attach it to new_vertex as a subtree
+                    subtree = CallTree(relevant_transactions[0])
+                    self.add_subtree_to_vertex(new_vertex, subtree)
+                else:
+                    print("None found - no other machine generated data during the call %s" % earliest_call)
+
+    def add_subtree_to_vertex(self, vertex, subtree):
+        """
+        Given a CallTreeVertex and a CallTree, add the root of the call tree as a child of the vertex
+        and copy all vertices over into the vertex set of the call tree.
+        :param vertex:
+        :param subtree:
+        :return: None
+        """
+        vertex.add_child(subtree._root)
+        self._vertices += subtree._vertices
 
     def write_to_file(self, file_name):
         """Write this call tree to a dot file."""
