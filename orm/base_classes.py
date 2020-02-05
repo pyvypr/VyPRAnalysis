@@ -441,15 +441,6 @@ class Transaction(object):
             if result == "None": raise ValueError('no transaction in the database with given time')
             d = json.loads(result)
             self.id = d["id"]
-        elif time_lower_bound != None and time_upper_bound != None:
-            # we've been given a time interval
-            result = connection.request('client/transaction/time/between/%s/%s/' % (time_lower_bound, time_upper_bound))
-            if result == "None": raise ValueError('No transaction found starting in the time interval %s - %s' %
-                                                  (time_lower_bound, time_upper_bound))
-            print(result)
-            d = json.loads(result)
-            self.id = d["id"]
-            self.time_of_transaction = d["time_of_transaction"]
         else:
             raise ValueError('either id or time_of_transaction argument required')
 
@@ -475,7 +466,20 @@ def transaction(id=None, time_of_transaction=None, time_lower_bound=None, time_u
     """
     Factory function for transactions.
     """
-    return Transaction(id, time_of_transaction, time_lower_bound, time_upper_bound)
+    connection = get_connection()
+    if time_lower_bound != None and time_upper_bound != None:
+        # we've been given a time interval
+        result = connection.request('client/transaction/time/between/%s/%s/' % (time_lower_bound, time_upper_bound))
+        if result == "None": raise ValueError('No transaction found starting in the time interval %s - %s' %
+                                              (time_lower_bound, time_upper_bound))
+        d = json.loads(result)
+        trans_dicts = []
+        for trans in d:
+            trans_obj = Transaction(trans["id"], trans["time_of_transaction"])
+            trans_dicts.append(trans_obj)
+        return trans_dicts
+    else:
+        return Transaction(id, time_of_transaction)
 
 
 class Atom(object):
