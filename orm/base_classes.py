@@ -43,12 +43,16 @@ class Function(object):
         calls_list = []
         for call in calls_dict:
             call_class = FunctionCall(call["id"], call["function"], call["time_of_call"], call["end_time_of_call"],
-                                      call["trans"])
+                                      call["trans"], call["path_condition_id_sequence"])
             calls_list.append(call_class)
         return calls_list
 
     def get_scfg(self):
         func = self.fully_qualified_name
+        # check for a machine name in the function name
+        # TODO: we need to change the syntax for machine names so they're easier to recognise
+        if "-" in func[0:func.index(".")]:
+            func = func[func.index("-")+1:]
         location = get_monitored_service_path()
         module = func[0:func.rindex(".")]
         func = func[func.rindex(".") + 1:]
@@ -224,14 +228,16 @@ class FunctionCall(object):
     """class function_call represents the homonymous table in the database
     initialized by either just the id or all the values"""
 
-    def __init__(self, id, function, time_of_call, end_time_of_call, trans):
+    def __init__(self, id, function, time_of_call, end_time_of_call, trans, path_condition_id_sequence):
         self.id = id
         self.function = function
         self.time_of_call = time_of_call
         self.end_time_of_call = end_time_of_call
         self.trans = trans
+        self.path_condition_id_sequence = path_condition_id_sequence
 
     def __repr__(self):
+        # omit path condition id sequence since it can be quite long
         return "<%s id=%i, function=%i, time_of_call=%s, end_time_of_call=%s, trans=%i>" % \
                (
                    self.__class__.__name__,
@@ -267,7 +273,7 @@ class FunctionCall(object):
         obs_list = []
         for o in obs_dict:
             obs_class = observation(o["id"], o["instrumentation_point"], o["verdict"], o["observed_value"],
-                                    o["atom_index"], o["previous_condition"])
+                                    o["atom_index"], o["previous_condition_offset"])
             obs_list.append(obs_class)
         return obs_list
 
@@ -300,7 +306,8 @@ def function_call(id):
         function=dict["function"],
         time_of_call=dict["time_of_call"],
         end_time_of_call=dict["end_time_of_call"],
-        trans=dict["trans"]
+        trans=dict["trans"],
+        path_condition_id_sequence=dict["path_condition_id_sequence"]
     )
 
 
@@ -371,7 +378,7 @@ class Verdict(object):
         obs_list = []
         for o in obs_dict:
             obs_class = observation(o["id"], o["instrumentation_point"], o["verdict"], o["observed_value"],
-                                    o["atom_index"], o["previous_condition"])
+                                    o["atom_index"], o["previous_condition_offset"])
             obs_list.append(obs_class)
         return obs_list
 
@@ -454,7 +461,7 @@ class Transaction(object):
         calls_list = []
         for call in calls_dict:
             call_class = FunctionCall(call["id"], call["function"], call["time_of_call"], call["end_time_of_call"],
-                                      call["trans"])
+                                      call["trans"], call["path_condition_id_sequence"])
             calls_list.append(call_class)
         return calls_list
 
@@ -568,7 +575,7 @@ class instrumentation_point:
         obs_list = []
         for o in obs_dict:
             obs_class = observation(o["id"], o["instrumentation_point"], o["verdict"], o["observed_value"],
-                                    o["atom_index"], o["previous_condition"])
+                                    o["atom_index"], o["previous_condition_offset"])
             obs_list.append(obs_class)
         return obs_list
 
@@ -576,7 +583,7 @@ class instrumentation_point:
 class Observation(object):
 
     def __init__(self, id, instrumentation_point=None, verdict=None, observed_value=None, observation_time=None,
-                 observation_end_time=None, atom_index=None, sub_index=None, previous_condition=None):
+                 observation_end_time=None, atom_index=None, sub_index=None, previous_condition_offset=None):
         self.id = id
         self.instrumentation_point = instrumentation_point
         self.verdict = verdict
@@ -585,11 +592,11 @@ class Observation(object):
         self.observation_end_time = observation_end_time
         self.atom_index = atom_index
         self.sub_index = sub_index
-        self.previous_condition = previous_condition
+        self.previous_condition_offset = previous_condition_offset
 
     def __repr__(self):
         return "<%s id=%i, instrumentation_point=%i, verdict=%i, observed_value=%s, observation_time=%s, " \
-               "observation_end_time=%s, atom_index=%i, sub_index=%i, previous_condition=%i>" % \
+               "observation_end_time=%s, atom_index=%i, sub_index=%i, previous_condition_offset=%i>" % \
                (
                    self.__class__.__name__,
                    self.id,
@@ -600,7 +607,7 @@ class Observation(object):
                    str(self.observation_end_time),
                    self.atom_index,
                    self.sub_index,
-                   self.previous_condition
+                   self.previous_condition_offset
                )
 
     def get_assignments(self):
@@ -631,13 +638,13 @@ class Observation(object):
 
 
 def observation(id, instrumentation_point=None, verdict=None, observed_value=None, observation_time=None,
-                observation_end_time=None, atom_index=None, sub_index=None, previous_condition=None):
+                observation_end_time=None, atom_index=None, sub_index=None, previous_condition_offset=None):
     """
     Factory function for observations.
     """
     connection = get_connection()
     if (instrumentation_point == None or verdict == None or observed_value == None or
-            atom_index == None or previous_condition == None):
+            atom_index == None or previous_condition_offset == None):
         result = connection.request('client/observation/id/%d/' % id)
         if result == "None": raise ValueError('there is no observation with given id')
         d = json.loads(result)
@@ -651,7 +658,7 @@ def observation(id, instrumentation_point=None, verdict=None, observed_value=Non
             observation_end_time=d["observation_end_time"],
             atom_index=d["atom_index"],
             sub_index=d["sub_index"],
-            previous_condition=d["previous_condition"]
+            previous_condition_offset=d["previous_condition_offset"]
         )
     else:
         return Observation(
@@ -663,7 +670,7 @@ def observation(id, instrumentation_point=None, verdict=None, observed_value=Non
             observation_end_time=observation_end_time,
             atom_index=atom_index,
             sub_index=sub_index,
-            previous_condition=previous_condition
+            previous_condition_offset=previous_condition_offset
         )
 
 

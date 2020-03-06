@@ -149,7 +149,8 @@ def edges_from_condition_sequence(scfg, path_subchain, instrumentation_point_pat
     if instrumentation_point_path_length != -1:
         # the length here needs to be changed depending on what the most recent construct the graph encountered was
         # or we need to move the vertex back one in the case that it advanced "too far".
-        limit = instrumentation_point_path_length if len(path_subchain) > 0 else instrumentation_point_path_length
+        offset = -1 if curr._path_length == 1 else 0
+        limit = (instrumentation_point_path_length + offset) if len(path_subchain) > 0 else instrumentation_point_path_length
         for i in range(limit):
             #path.append(curr)
             path.append(curr.edges[0])

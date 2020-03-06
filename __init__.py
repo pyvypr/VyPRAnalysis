@@ -69,6 +69,12 @@ def set_vypr_path(path):
     sys.path.append(vypr_path)
 
 
+def set_monitored_service_path(path):
+    global monitored_service_path
+    monitored_service_path = path
+    return monitored_service_path
+
+
 def get_monitored_service_path():
     global monitored_service_path
     return monitored_service_path

@@ -132,10 +132,9 @@ class CallTree(object):
             # get the direct callees
             direct_callees = current_vertex.get_callees()
             # add to a final list
-            final_list_of_callees += list(map(lambda vertex : vertex._call_obj, current_vertex.get_callees()))
+            #final_list_of_callees += list(map(lambda vertex : vertex._call_obj, current_vertex.get_callees()))
             # add the vertices to a stack
             stack += direct_callees
-
         return final_list_of_callees
 
 
@@ -188,8 +187,9 @@ class CallTree(object):
 
                 if len(relevant_transactions) != 0:
                     # construct the call tree of the transaction and attach it to new_vertex as a subtree
-                    subtree = CallTree(relevant_transactions[0])
-                    self.add_subtree_to_vertex(new_vertex, subtree)
+                    for relevant_transaction in relevant_transactions:
+                      subtree = CallTree(relevant_transaction)
+                      self.add_subtree_to_vertex(new_vertex, subtree)
 
     def add_subtree_to_vertex(self, vertex, subtree):
         """
