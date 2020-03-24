@@ -17,6 +17,16 @@ monitored_service_path = None
 
 sys.path.append(vypr_path)
 
+def prepare(db=None):
+    import subprocess
+    cmd = "cd VyPRServer/ && python run_service.py "
+    if db:
+        cmd = cmd + "--db %s &" % db
+    else:
+        cmd = cmd + "&"
+    subprocess.call(cmd, shell=True)
+    set_server("http://localhost:9002/")
+
 
 def set_config_file(config_file_name='config.json'):
     """
