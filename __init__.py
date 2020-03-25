@@ -6,7 +6,6 @@ Joshua Dawes - University of Manchester, CERN.
 """
 import json
 import sys
-import time
 
 from VyPRAnalysis.http_requests import VerdictServerConnection
 
@@ -18,26 +17,6 @@ monitored_service_path = None
 
 sys.path.append(vypr_path)
 
-def prepare(db=None):
-    """
-    Given the database name (optional), sets up the verdict server.
-    """
-    import subprocess
-    cmd = "cd VyPRServer/ && python run_service.py "
-    if db:
-        cmd = cmd + "--db %s &" % db
-    else:
-        cmd = cmd + "&"
-    subprocess.call(cmd, shell=True)
-
-    handshake_failed = True
-    while handshake_failed:
-        try:
-            set_server("http://localhost:9002/")
-            handshake_failed = False
-        except:
-            handshake_failed = True
-    if not handshake_failed: print("Connected to server")
 
 
 def set_config_file(config_file_name='config.json'):
@@ -100,6 +79,36 @@ def set_monitored_service_path(path):
 def get_monitored_service_path():
     global monitored_service_path
     return monitored_service_path
+
+
+def prepare(db=None):
+    """
+    Given the database name (optional), sets up the verdict server.
+    """
+    import subprocess
+    cmd = "cd VyPRServer/ && python run_service.py "
+    if db:
+        cmd = cmd + "--db %s &" % db
+    else:
+        cmd = cmd + "&"
+    p = subprocess.Popen(cmd, shell=True)
+
+    handshake_failed = True
+    while handshake_failed:
+        try:
+            set_server("http://localhost:9002/")
+            handshake_failed = False
+        except:
+            handshake_failed = True
+    if not handshake_failed: print("Connected to server")
+
+
+def teardown():
+    global connection
+    try:
+        connection.request("shutdown/")
+    except:
+        print("  ")
 
 
 """
