@@ -6,6 +6,7 @@ Joshua Dawes - University of Manchester, CERN.
 """
 import json
 import sys
+import time
 
 from VyPRAnalysis.http_requests import VerdictServerConnection
 
@@ -18,6 +19,9 @@ monitored_service_path = None
 sys.path.append(vypr_path)
 
 def prepare(db=None):
+    """
+    Given the database name (optional), sets up the verdict server.
+    """
     import subprocess
     cmd = "cd VyPRServer/ && python run_service.py "
     if db:
@@ -25,7 +29,15 @@ def prepare(db=None):
     else:
         cmd = cmd + "&"
     subprocess.call(cmd, shell=True)
-    set_server("http://localhost:9002/")
+
+    handshake_failed = True
+    while handshake_failed:
+        try:
+            set_server("http://localhost:9002/")
+            handshake_failed = False
+        except:
+            handshake_failed = True
+    if not handshake_failed: print("Connected to server")
 
 
 def set_config_file(config_file_name='config.json'):
