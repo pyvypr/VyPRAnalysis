@@ -141,7 +141,7 @@ class Property(object):
         if result == "None":
             raise ValueError('no such property')
         else:
-            f_dict = json.loads(str)
+            f_dict = json.loads(result)
             self.serialised_structure = f_dict["serialised_structure"]
 
     def __repr__(self):
@@ -623,7 +623,7 @@ class Observation(object):
 
     def get_instrumentation_point(self):
         return instrumentation_point(id=self.instrumentation_point)
-    
+
     def reconstruct_reaching_path(self, scfg):
         """Reconstruct the sequence of edges to reach this observation through the SCFG given."""
         connection = get_connection()
