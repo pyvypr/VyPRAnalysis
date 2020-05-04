@@ -37,7 +37,7 @@ class Function(object):
         if given the optional parameter value, it returns the list of the
         function calls which happened during the given trans"""
         connection = get_connection()
-        result = connection.request('client/function/name/%s/function_calls/' % self.fully_qualified_name)
+        result = connection.request('client/function/id/%s/function_calls/' % self.id)
         if (result == "None"): raise ValueError('no such calls')
         calls_dict = json.loads(result)
         calls_list = []
