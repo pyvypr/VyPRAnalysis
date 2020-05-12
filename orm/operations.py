@@ -115,8 +115,8 @@ def list_functions():
     f_dict = json.loads(result)
     f_list = []
     for f in f_dict:
-        f_class = function(f["id"], f["fully_qualified_name"], f["property"])
-        f_list.append(f_class)
+        f_obj = function(f["id"], f["fully_qualified_name"])
+        f_list.append(f_obj)
     return f_list
 
 

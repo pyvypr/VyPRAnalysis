@@ -18,18 +18,16 @@ from VyPR.SCFG.construction import *
 
 class Function(object):
 
-    def __init__(self, id, fully_qualified_name, property):
+    def __init__(self, id, fully_qualified_name):
         self.id = id
         self.fully_qualified_name = fully_qualified_name
-        self.property = property
 
     def __repr__(self):
-        return "<%s id=%i, fully_qualified_name=%s, property=%s>" % \
+        return "<%s id=%i, fully_qualified_name=%s>" % \
                (
                    self.__class__.__name__,
                    self.id,
-                   self.fully_qualified_name,
-                   self.property
+                   self.fully_qualified_name
                )
 
     def get_calls(self):
@@ -92,19 +90,18 @@ class Function(object):
         return binding_list
 
 
-def function(id=None, fully_qualified_name=None, property=None):
+def function(id=None, fully_qualified_name=None):
     """
     Factory function for either getting a single function, or a list of functions.
     """
 
     connection = get_connection()
 
-    if id != None and fully_qualified_name != None and property != None:
+    if id != None and fully_qualified_name != None:
 
         return Function(
             id=id,
-            fully_qualified_name=fully_qualified_name,
-            property=property
+            fully_qualified_name=fully_qualified_name
         )
 
     elif fully_qualified_name != None:
@@ -115,7 +112,7 @@ def function(id=None, fully_qualified_name=None, property=None):
         functions_list = []
 
         for f in f_dict:
-            f_obj = function(f["id"], f["fully_qualified_name"], f["property"])
+            f_obj = function(f["id"], f["fully_qualified_name"])
             functions_list.append(f_obj)
 
         return functions_list
@@ -128,8 +125,7 @@ def function(id=None, fully_qualified_name=None, property=None):
 
         return Function(
             id=id,
-            fully_qualified_name=f_dict["fully_qualified_name"],
-            property=f_dict["property"]
+            fully_qualified_name=f_dict["fully_qualified_name"]
         )
 
 
@@ -149,24 +145,25 @@ class Property(object):
 
 
 class Binding(object):
-    def __init__(self, id, binding_space_index, function, binding_statement_lines):
-        connection = get_connection()
+    def __init__(self, id, binding_space_index, function, binding_statement_lines, property_hash):
         self.id = id
-        if binding_space_index == None or function == None or binding_statement_lines == None:
+        if binding_space_index == None or function == None or binding_statement_lines == None or property_hash == None:
             pass
         else:
             self.binding_space_index = binding_space_index
             self.function = function
             self.binding_statement_lines = binding_statement_lines
+            self.property_hash = property_hash
 
     def __repr__(self):
-        return "<%s id=%i, binding_space_index=%i, function=%i, binding_statement_lines=%s>" % \
+        return "<%s id=%i, binding_space_index=%i, function=%i, binding_statement_lines=%s, property_hash=%s>" % \
                (
                    self.__class__.__name__,
                    self.id,
                    self.binding_space_index,
                    self.function,
-                   self.binding_statement_lines
+                   self.binding_statement_lines,
+                   self.property_hash
                )
 
     def get_verdicts(self):
@@ -179,21 +176,23 @@ class Binding(object):
             verdict_list = []
             for v in result:
                 new_verdict = verdict(v["id"], v["binding"], v["verdict"], v["time_obtained"], v["function_call"],
-                                      v["collapsing_atom"], v["collapsing_atom_sub_index"])
+                                      v["collapsing_atom"], v["collapsing_atom_sub_index"], v["property_hash"])
                 verdict_list.append(new_verdict)
             return verdict_list
 
 
-def binding(id=None, binding_space_index=None, function=None, binding_statement_lines=None):
+def binding(id=None, binding_space_index=None, function=None, binding_statement_lines=None, property_hash=None):
     connection = get_connection()
 
-    if id != None and binding_space_index != None and function != None and binding_statement_lines != None:
+    if (id != None and binding_space_index != None and function != None and binding_statement_lines != None
+        and property_hash != None):
 
         return Binding(
             id=id,
             binding_space_index=binding_space_index,
             function=function,
-            binding_statement_lines=binding_statement_lines
+            binding_statement_lines=binding_statement_lines,
+            property_hash=property_hash
         )
 
     elif id != None:
@@ -205,7 +204,8 @@ def binding(id=None, binding_space_index=None, function=None, binding_statement_
             id=id,
             binding_space_index=dict["binding_space_index"],
             function=dict["function"],
-            binding_statement_lines=dict["binding_statement_lines"]
+            binding_statement_lines=dict["binding_statement_lines"],
+            property_hash=dict["property_hash"]
         )
 
     elif function != None:
@@ -214,7 +214,13 @@ def binding(id=None, binding_space_index=None, function=None, binding_statement_
         result = json.loads(bindings)
         binding_list = []
         for b in result:
-            new_binding = binding(b["id"], b["binding_space_index"], b["function"], b["binding_statement_lines"])
+            new_binding = binding(
+                b["id"],
+                b["binding_space_index"],
+                b["function"],
+                b["binding_statement_lines"],
+                b["property_hash"]
+            )
             binding_list.append(new_binding)
 
         return binding_list
@@ -340,7 +346,7 @@ class Verdict(object):
 
     def __repr__(self):
         return "<%s id=%i, binding=%i, verdict=%i, time_obtained=%s, function_call=%i, collapsing_atom=%i, " \
-               "collapsing_atom_sub_index=%i>" % \
+               "collapsing_atom_sub_index=%i" % \
                (
                    self.__class__.__name__,
                    self.id,
@@ -351,21 +357,6 @@ class Verdict(object):
                    self.collapsing_atom,
                    self.collapsing_atom_sub_index
                )
-
-    def get_property_hash(self):
-        """
-        initialise the binding using the attribute that stores its id
-        initialise the function using the attribute of binding that stores function id
-        finally, get the property which is an attribute of function
-        """
-
-        # it's possible to define a separate function for each of these steps
-        # the code would be more straightforward then
-        # or a database query that returns the property direcrtly (more efficient)
-        return function(binding(self.binding).function).property
-
-    def get_collapsing_atom(self):
-        return Atom(index_in_atoms=self.collapsing_atom, property_hash=self.get_property_hash())
 
     def get_observations(self):
         """
