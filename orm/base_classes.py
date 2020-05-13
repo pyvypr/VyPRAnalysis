@@ -89,6 +89,19 @@ class Function(object):
 
         return binding_list
 
+    def get_properties(self):
+        connection = get_connection()
+        result = connection.request("client/function/id/%d/properties/" % self.id)
+        if result == "None":
+            raise ValueError("No such properties")
+        properties_dict = json.loads(result)
+        property_list = []
+        for prop in properties_dict:
+            prop_obj = Property(prop["hash"], prop["serialised_structure"], prop["index_in_specification_file"])
+            property_list.append(prop_obj)
+
+        return property_list
+
 
 def function(id=None, fully_qualified_name=None):
     """
@@ -130,18 +143,31 @@ def function(id=None, fully_qualified_name=None):
 
 
 class Property(object):
-    def __init__(self, hash):
-        connection = get_connection()
-        self.hash = hash
-        result = connection.request('client/property/hash/%s/' % hash)
-        if result == "None":
-            raise ValueError('no such property')
+    def __init__(self, hash, serialised_structure=None, index_in_specification_file=None):
+        if (serialised_structure==None or index_in_specification_file==None):
+            connection = get_connection()
+            self.hash = hash
+            result = connection.request('client/property/hash/%s/' % hash)
+            if result == "None":
+                raise ValueError('no such property')
+            else:
+                f_dict = json.loads(result)
+                self.serialised_structure = f_dict["serialised_structure"]
+                self.index_in_specification_file = f_dict["index_in_specification_file"]
         else:
-            f_dict = json.loads(result)
-            self.serialised_structure = f_dict["serialised_structure"]
+            self.hash = hash
+            self.serialised_structure = serialised_structure
+            self.index_in_specification_file = index_in_specification_file
 
     def __repr__(self):
         return "<Property hash=%s>" % self.hash
+
+def property(hash, serialised_structure=None, index_in_specification_file=None):
+    if (hash != None and serialised_structure!=None and index_in_specification_file!=None):
+        return Property(hash, serialised_structure, index_in_specification_file)
+    else:
+        return Property(hash)
+
 
 
 class Binding(object):
@@ -254,12 +280,16 @@ class FunctionCall(object):
                    self.trans
                )
 
-    def get_verdicts(self, value=None):
+    def get_verdicts(self, value=None, property=None):
         connection = get_connection()
-        if value == None:
+        if value == None and property==None:
             result = connection.request('client/function_call/id/%d/verdicts/' % self.id)
-        else:
+        elif property==None:
             result = connection.request('client/function_call/id/%d/verdict/value/%d/' % (self.id, value))
+        elif value==None:
+            result = connection.request('client/function_call/id/%d/hash/%s/verdicts/' % (self.id, property))
+        else:
+            result = connection.request('client/function_call/id/%d/verdict/value/%d/hash/%s/' % (self.id, value, property))
 
         if result == "None": print('no verdicts for given function call')
 
