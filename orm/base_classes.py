@@ -292,7 +292,6 @@ class FunctionCall(object):
         elif value==None:
             if type(property) == Property:
                 property = property.hash
-                print("property : %s"%property)
             if type(property)==str or type(property)==unicode:
                 result = connection.request('client/function_call/id/%d/hash/%s/verdicts/' % (self.id, property))
             else:
