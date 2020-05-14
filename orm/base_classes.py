@@ -282,7 +282,7 @@ class FunctionCall(object):
 
     def get_verdicts(self, value=None, property=None):
         connection = get_connection()
-        print(type(property))
+        
         if value == None and property==None:
             result = connection.request('client/function_call/id/%d/verdicts/' % self.id)
 
