@@ -282,14 +282,30 @@ class FunctionCall(object):
 
     def get_verdicts(self, value=None, property=None):
         connection = get_connection()
+        print(type(property))
         if value == None and property==None:
             result = connection.request('client/function_call/id/%d/verdicts/' % self.id)
+
         elif property==None:
             result = connection.request('client/function_call/id/%d/verdict/value/%d/' % (self.id, value))
+
         elif value==None:
-            result = connection.request('client/function_call/id/%d/hash/%s/verdicts/' % (self.id, property))
+            if type(property) == Property:
+                property = property.hash
+                print("property : %s"%property)
+            if type(property)==str or type(property)==unicode:
+                result = connection.request('client/function_call/id/%d/hash/%s/verdicts/' % (self.id, property))
+            else:
+                raise ValueError("parse property hash or a property object as argument")
+                return
         else:
-            result = connection.request('client/function_call/id/%d/verdict/value/%d/hash/%s/' % (self.id, value, property))
+            if type(property) == Property:
+                property = property.hash
+            if type(property)==str or type(property)==unicode:
+                result = connection.request('client/function_call/id/%d/verdict/value/%d/hash/%s/' % (self.id, value, property))
+            else:
+                raise ValueError("parse property hash or a property object as argument")
+                return
 
         if result == "None": print('no verdicts for given function call')
 
