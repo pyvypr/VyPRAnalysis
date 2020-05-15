@@ -86,7 +86,7 @@ def prepare(db=None):
     Given the database name (optional), sets up the verdict server.
     """
     import subprocess
-    cmd = "cd VyPRServer/ && python run_service.py "
+    cmd = "cd VyPRServer/ && python run_service.py --port 9002 "
     if db:
         cmd = cmd + "--db %s &" % db
     else:
