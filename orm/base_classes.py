@@ -8,7 +8,7 @@ import pickle
 import base64
 
 # VyPRAnalysis imports
-from VyPRAnalysis import get_server, get_connection, get_monitored_service_path
+from VyPRAnalysis import get_connection, get_monitored_service_path
 from VyPRAnalysis.utils import get_qualifier_subsequence
 from VyPRAnalysis.path_reconstruction import edges_from_condition_sequence, deserialise_condition
 
@@ -67,10 +67,15 @@ class Function(object):
         current_step = asts.body
         # traverse sub structures
         for step in hierarchy:
-            current_step = filter(lambda entry: (type(entry) is ast.ClassDef and entry.name == step), current_step)[0]
+            current_step = filter(
+                lambda entry: (type(entry) is ast.ClassDef and entry.name == step),
+                current_step
+            )[0]
         # find the final function definition
-        function_def = list(filter(lambda entry: (type(entry) is ast.FunctionDef and entry.name == actual_function_name),
-                              current_step.body if type(current_step) is ast.ClassDef else current_step))[0]
+        function_def = list(filter(
+            lambda entry: (type(entry) is ast.FunctionDef and entry.name == actual_function_name),
+            current_step.body if type(current_step) is ast.ClassDef else current_step)
+        )[0]
         # construct the scfg of the code inside the function
         scfg = CFG()
         scfg.process_block(function_def.body)
@@ -110,14 +115,14 @@ def function(id=None, fully_qualified_name=None):
 
     connection = get_connection()
 
-    if id != None and fully_qualified_name != None:
+    if id is not None and fully_qualified_name is not None:
 
         return Function(
             id=id,
             fully_qualified_name=fully_qualified_name
         )
 
-    elif fully_qualified_name != None:
+    elif fully_qualified_name is not None:
 
         functions = connection.request('client/function/name/%s/' % fully_qualified_name)
         if functions == "None": raise ValueError('no functions named %s' % fully_qualified_name)
@@ -130,7 +135,7 @@ def function(id=None, fully_qualified_name=None):
 
         return functions_list
 
-    elif id != None:
+    elif id is not None:
 
         result = connection.request('client/function/id/%d/' % id)
         if result == "None": raise ValueError('no functions with given ID')
@@ -173,7 +178,7 @@ def property(hash, serialised_structure=None, index_in_specification_file=None):
 class Binding(object):
     def __init__(self, id, binding_space_index, function, binding_statement_lines, property_hash):
         self.id = id
-        if binding_space_index == None or function == None or binding_statement_lines == None or property_hash == None:
+        if binding_space_index is None or function is None or binding_statement_lines is None or property_hash is None:
             pass
         else:
             self.binding_space_index = binding_space_index
@@ -202,7 +207,7 @@ class Binding(object):
             verdict_list = []
             for v in result:
                 new_verdict = verdict(v["id"], v["binding"], v["verdict"], v["time_obtained"], v["function_call"],
-                                      v["collapsing_atom"], v["collapsing_atom_sub_index"], v["property_hash"])
+                                      v["collapsing_atom"], v["collapsing_atom_sub_index"])
                 verdict_list.append(new_verdict)
             return verdict_list
 
@@ -210,8 +215,8 @@ class Binding(object):
 def binding(id=None, binding_space_index=None, function=None, binding_statement_lines=None, property_hash=None):
     connection = get_connection()
 
-    if (id != None and binding_space_index != None and function != None and binding_statement_lines != None
-        and property_hash != None):
+    if (id is not None and binding_space_index is not None and function is not None and
+            binding_statement_lines is not None and property_hash is not None):
 
         return Binding(
             id=id,
@@ -221,7 +226,7 @@ def binding(id=None, binding_space_index=None, function=None, binding_statement_
             property_hash=property_hash
         )
 
-    elif id != None:
+    elif id is not None:
         result = connection.request('client/binding/id/%d/' % id)
         if result == "None": raise ValueError('there is no binding with given id')
         dict = json.loads(result)
@@ -234,7 +239,7 @@ def binding(id=None, binding_space_index=None, function=None, binding_statement_
             property_hash=dict["property_hash"]
         )
 
-    elif function != None:
+    elif function is not None:
 
         bindings = connection.request("client/function/id/%d/bindings/" % function)
         result = json.loads(bindings)
@@ -282,7 +287,6 @@ class FunctionCall(object):
 
     def get_verdicts(self, value=None, property=None):
         connection = get_connection()
-        
         if value == None and property==None:
             result = connection.request('client/function_call/id/%d/verdicts/' % self.id)
 
@@ -362,6 +366,76 @@ def function_call(id):
     )
 
 
+class TestData(object):
+
+    def __init__(self, id, test_name, test_result, start_time, end_time):
+        self.id = id
+        self.test_name = test_name
+        self.test_result = test_result
+        self.start_time = start_time
+        self.end_time = end_time
+
+    def __repr__(self):
+        return "<%s id=%i, test_name=%s, test_result=%s, start_time=%s, end_time=%s>" % \
+               (
+                   self.__class__.__name__,
+                   self.id,
+                   self.test_name,
+                   self.test_result,
+                   self.start_time,
+                   self.end_time
+               )
+
+    def get_function_calls(self):
+        """
+        Get the list of FunctionCall objects representing function calls during this test case execution.
+        :return: List of FunctionCall objects.
+        """
+        connection = get_connection()
+        result = connection.request('client/function_call/between/%s/%s/' % (self.start_time, self.end_time))
+        if result == "None": print('No function calls occurred during test case execution with ID %i' % self.id)
+        calls_dict = json.loads(result)
+        calls_list = []
+        for call in calls_dict:
+            call_class = FunctionCall(call["id"], call["function"], call["time_of_call"], call["end_time_of_call"],
+                                      call["trans"], call["path_condition_id_sequence"])
+            calls_list.append(call_class)
+        return calls_list
+
+
+def test_data(id=None, test_name=None, test_result=None, start_time=None, end_time=None):
+    """
+    Factory function for test data rows.
+    """
+
+    connection = get_connection()
+
+    if (id is not None and test_name is not None and test_result is not None and
+            start_time is not None and end_time is not None):
+
+        return TestData(
+            id=id,
+            test_name=test_name,
+            test_result=test_result,
+            start_time=start_time,
+            end_time=end_time
+        )
+
+    elif id is not None:
+
+        result = connection.request('client/test_data/id/%d/' % id)
+        if result == "None": raise ValueError('no test data with given ID')
+        dict = json.loads(result)
+
+        return TestData(
+            id=id,
+            test_name=dict["test_name"],
+            test_result=dict["test_result"],
+            start_time=dict["start_time"],
+            end_time=dict["end_time"]
+        )
+
+
 class Verdict(object):
     """class verdict has the same objects as the table verdict in the database
     initialized by either just the id or all the values
@@ -371,7 +445,7 @@ class Verdict(object):
                  collapsing_atom_sub_index=None):
         connection = get_connection()
         self.id = id
-        if binding == None:
+        if binding is None:
             result = connection.request('client/get_verdict_by_id/%d/' % self.id)
             if result == "None": raise ValueError('no verdicts with given ID')
             d = json.loads(result)
@@ -427,8 +501,8 @@ def verdict(id=None, binding=None, verdict=None, time_obtained=None, function_ca
 
     connection = get_connection()
 
-    if (id != None and binding != None and verdict != None and time_obtained != None and function_call != None and
-            collapsing_atom != None and collapsing_atom_sub_index != None):
+    if (id is not None and binding is not None and verdict is not None and time_obtained is not None and
+            function_call is not None and collapsing_atom is not None and collapsing_atom_sub_index is not None):
 
         return Verdict(
             id=id,
@@ -440,7 +514,7 @@ def verdict(id=None, binding=None, verdict=None, time_obtained=None, function_ca
             collapsing_atom_sub_index=collapsing_atom_sub_index
         )
 
-    elif id != None:
+    elif id is not None:
 
         result = connection.request('client/verdict/id/%d/' % id)
         if result == "None": raise ValueError('no verdicts with given ID')
@@ -469,16 +543,16 @@ class Transaction(object):
 
     def __init__(self, id=None, time_of_transaction=None, time_lower_bound=None, time_upper_bound=None):
         connection = get_connection()
-        if id != None:
+        if id is not None:
             self.id = id
-            if time_of_transaction == None:
+            if time_of_transaction is None:
                 result = connection.request('client/transaction/id/%d/' % self.id)
                 if result == "None": raise ValueError('no transaction in the database with given ID')
                 d = json.loads(result)
                 self.time_of_transaction = d["time_of_transaction"]
             else:
                 self.time_of_transaction = time_of_transaction
-        elif time_of_transaction != None:
+        elif time_of_transaction is not None:
             self.time_of_transaction = time_of_transaction
             result = connection.request('client/transaction/time/%s/' % self.time_of_transaction)
             if result == "None": raise ValueError('no transaction in the database with given time')
@@ -516,7 +590,7 @@ def transaction(id=None, time_of_transaction=None, time_lower_bound=None, time_u
     Factory function for transactions.
     """
     connection = get_connection()
-    if time_lower_bound != None and time_upper_bound != None:
+    if time_lower_bound is not None and time_upper_bound is not None:
         # we've been given a time interval
         result = connection.request('client/transaction/time/between/%s/%s/' % (time_lower_bound, time_upper_bound))
         if result == "None": raise ValueError('No transaction found starting in the time interval %s - %s' %
@@ -539,13 +613,13 @@ class Atom(object):
 
     def __init__(self, id=None, property_hash=None, serialised_structure=None, index_in_atoms=None):
         connection = get_connection()
-        if id != None and property_hash != None and serialised_structure != None and index_in_atoms != None:
+        if id is not None and property_hash is not None and serialised_structure is not None and index_in_atoms is not None:
             self.id = id
             self.property_hash = property_hash
             self.serialised_structure = serialised_structure
             self.index_in_atoms = index_in_atoms
         else:
-            if id != None:
+            if id is not None:
                 self.id = id
                 result = connection.request('client/atom/id/%d/' % self.id)
                 if result == "None": raise ValueError('no atoms with given ID')
@@ -553,7 +627,7 @@ class Atom(object):
                 self.property_hash = d["property_hash"]
                 self.serialised_structure = d["serialised_structure"]
                 self.index_in_atoms = d["index_in_atoms"]
-            elif index_in_atoms != None and property_hash != None:
+            elif index_in_atoms is not None and property_hash is not None:
                 self.index_in_atoms = index_in_atoms
                 self.property_hash = property_hash
                 result = connection.request(
@@ -589,7 +663,7 @@ class instrumentation_point:
     def __init__(self, id, serialised_condition_sequence=None, reaching_path_length=None):
         connection = get_connection()
         self.id = id
-        if serialised_condition_sequence == None or reaching_path_length == None:
+        if serialised_condition_sequence is None or reaching_path_length is None:
             result = connection.request('client/instrumentation_point/id/%d/' % self.id)
             if result == "None":
                 raise ValueError("there is no instrumentation point with given id")
@@ -679,8 +753,8 @@ def observation(id, instrumentation_point=None, verdict=None, observed_value=Non
     Factory function for observations.
     """
     connection = get_connection()
-    if (instrumentation_point == None or verdict == None or observed_value == None or
-            atom_index == None or previous_condition_offset == None):
+    if (instrumentation_point is None or verdict is None or observed_value is None or
+            atom_index is None or previous_condition_offset is None):
         result = connection.request('client/observation/id/%d/' % id)
         if result == "None": raise ValueError('there is no observation with given id')
         d = json.loads(result)

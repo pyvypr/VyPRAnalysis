@@ -12,7 +12,12 @@ from VyPR.SCFG.parse_tree import ParseTree
 
 # VyPRAnalysis imports
 from VyPRAnalysis import get_server, get_connection, get_monitored_service_path
-from VyPRAnalysis.orm.base_classes import function, function_call, verdict, observation, instrumentation_point
+from VyPRAnalysis.orm.base_classes import (function,
+                                           function_call,
+                                           verdict,
+                                           observation,
+                                           instrumentation_point,
+                                           test_data)
 from VyPRAnalysis.path_reconstruction import edges_from_condition_sequence, deserialise_condition
 
 
@@ -107,17 +112,43 @@ def get_paths_from_observations(function_name, obs_id_list, inst_point=None):
 
 
 def list_functions():
+    """
+    Get all existing functions from the server.
+    :return: List of Function objects.
+    """
     connection = get_connection()
     result = connection.request('client/function/')
     if result == "None":
-        raise ValueError('no functions')
-        return
+        raise ValueError('No functions currently exist.')
     f_dict = json.loads(result)
     f_list = []
     for f in f_dict:
         f_obj = function(f["id"], f["fully_qualified_name"])
         f_list.append(f_obj)
     return f_list
+
+
+def list_test_data():
+    """
+    Get all existing test cases from the server.
+    :return: List of TestCase objects.
+    """
+    connection = get_connection()
+    result = connection.request('client/test_data/')
+    if result == "None":
+        raise ValueError('No test cases currently exist.')
+    results = json.loads(result)
+    test_case_objs = []
+    for test_case_row in results:
+        test_case_obj = test_data(
+            test_case_row["id"],
+            test_case_row["test_name"],
+            test_case_row["test_result"],
+            test_case_row["start_time"],
+            test_case_row["end_time"]
+        )
+        test_case_objs.append(test_case_obj)
+    return test_case_objs
 
 
 """
