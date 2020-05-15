@@ -17,6 +17,9 @@ from VyPR.SCFG.construction import *
 
 
 class Function(object):
+    """
+    Class for functions.  Each monitored function generates its own instance.
+    """
 
     def __init__(self, id, fully_qualified_name):
         self.id = id
@@ -31,9 +34,9 @@ class Function(object):
                )
 
     def get_calls(self):
-        """function.get_calls() returns a list of calls for the given function
-        if given the optional parameter value, it returns the list of the
-        function calls which happened during the given trans"""
+        """
+        Get a list of calls for the current function.
+        """
         connection = get_connection()
         result = connection.request('client/function/id/%s/function_calls/' % self.id)
         if (result == "None"): raise ValueError('no such calls')
@@ -46,6 +49,9 @@ class Function(object):
         return calls_list
 
     def get_scfg(self):
+        """
+        Construct the Symbolic Control-Flow Graph of the current function.
+        """
         func = self.fully_qualified_name
         # check for a machine name in the function name
         # TODO: we need to change the syntax for machine names so they're easier to recognise
@@ -82,6 +88,9 @@ class Function(object):
         return scfg
 
     def get_bindings(self):
+        """
+        Get the list of Binding objects belonging to this function, regardless of their query.
+        """
         connection = get_connection()
         result = connection.request("client/function/id/%d/bindings/" % self.id)
         if result == "None":
@@ -135,6 +144,9 @@ def function(id=None, fully_qualified_name=None):
 
 
 class Property(object):
+    """
+    Class for queries.  Each distinct query generates its own instance.
+    """
     def __init__(self, hash):
         connection = get_connection()
         self.hash = hash
@@ -150,6 +162,9 @@ class Property(object):
 
 
 class Binding(object):
+    """
+    A class for bindings
+    """
     def __init__(self, id, binding_space_index, function, binding_statement_lines, property_hash):
         self.id = id
         if binding_space_index is None or function is None or binding_statement_lines is None or property_hash is None:
