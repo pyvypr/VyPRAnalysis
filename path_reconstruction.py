@@ -12,9 +12,7 @@ from VyPR.monitor_synthesis.formula_tree import LogicalNot
 
 def edges_from_condition_sequence(scfg, path_subchain, instrumentation_point_path_length):
     """
-    Given a sequence of (deserialised) conditions in path_subchain and the final path length,
-    reconstruct a path through the scfg, including loop multiplicity.
-    If instrumentation_point_path_length = -1, we assume we're reconstructing a complete path through the SCFG.
+    Given a Symbolic Control-Flow Graph ``scfg`` and a path subchain
     """
     #print("reconstruction with path subchain %s" % str(path_subchain))
     condition_index = 0

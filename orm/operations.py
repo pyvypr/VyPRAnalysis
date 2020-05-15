@@ -1,5 +1,5 @@
 """
-Module that contains functions to perform operations with ORM classes.
+**Operations to begin analyses with**
 """
 
 import requests
@@ -19,6 +19,53 @@ from VyPRAnalysis.orm.base_classes import (function,
                                            instrumentation_point,
                                            test_data)
 from VyPRAnalysis.path_reconstruction import edges_from_condition_sequence, deserialise_condition
+
+
+"""
+Entry-point functions for listing objects held in the database.
+"""
+
+
+def list_functions():
+    """
+    Get a list of all existing functions from the server.
+    """
+    connection = get_connection()
+    result = connection.request('client/function/')
+    if result == "None":
+        raise ValueError('No functions currently exist.')
+    f_dict = json.loads(result)
+    f_list = []
+    for f in f_dict:
+        f_obj = function(f["id"], f["fully_qualified_name"])
+        f_list.append(f_obj)
+    return f_list
+
+
+def list_test_data():
+    """
+    Get a list of all existing test cases from the server.
+    """
+    connection = get_connection()
+    result = connection.request('client/test_data/')
+    if result == "None":
+        raise ValueError('No test cases currently exist.')
+    results = json.loads(result)
+    test_case_objs = []
+    for test_case_row in results:
+        test_case_obj = test_data(
+            test_case_row["id"],
+            test_case_row["test_name"],
+            test_case_row["test_result"],
+            test_case_row["start_time"],
+            test_case_row["end_time"]
+        )
+        test_case_objs.append(test_case_obj)
+    return test_case_objs
+
+"""
+Post-processing functions.
+"""
 
 
 def get_parametric_path(obs_id_list, instrumentation_point_id=None):
@@ -111,46 +158,6 @@ def get_paths_from_observations(function_name, obs_id_list, inst_point=None):
     return paths
 
 
-def list_functions():
-    """
-    Get all existing functions from the server.
-    :return: List of Function objects.
-    """
-    connection = get_connection()
-    result = connection.request('client/function/')
-    if result == "None":
-        raise ValueError('No functions currently exist.')
-    f_dict = json.loads(result)
-    f_list = []
-    for f in f_dict:
-        f_obj = function(f["id"], f["fully_qualified_name"])
-        f_list.append(f_obj)
-    return f_list
-
-
-def list_test_data():
-    """
-    Get all existing test cases from the server.
-    :return: List of TestCase objects.
-    """
-    connection = get_connection()
-    result = connection.request('client/test_data/')
-    if result == "None":
-        raise ValueError('No test cases currently exist.')
-    results = json.loads(result)
-    test_case_objs = []
-    for test_case_row in results:
-        test_case_obj = test_data(
-            test_case_row["id"],
-            test_case_row["test_name"],
-            test_case_row["test_result"],
-            test_case_row["start_time"],
-            test_case_row["end_time"]
-        )
-        test_case_objs.append(test_case_obj)
-    return test_case_objs
-
-
 """
 Path analysis classes.
 """
@@ -158,8 +165,7 @@ Path analysis classes.
 
 class PathCollection(object):
     """
-    Models a set of paths, obtained by direct reconstruction
-    or modification of already reconstructed paths.
+    Models a set of paths, obtained by direct reconstruction or modification of already reconstructed paths.
     """
 
     def __init__(self, paths, scfg, function_name, parametric=False):
@@ -177,8 +183,8 @@ class PathCollection(object):
 
     def intersection(self, starting_vertex=None):
         """
-        Return the parametric path resulting from the intersection
-        of all paths in the collection.
+        Return a ``ParametricPathCollection`` instance containing the single path resulting from the intersection
+        of all paths in the current collection.
         """
         grammar = self._scfg.derive_grammar()
 
@@ -199,6 +205,10 @@ class PathCollection(object):
             return PartialParametricPathCollection([parametric_path], self._scfg, self._function_name)
 
     def show_critical_points_in_file(self, filename=None, verbose=False):
+        """
+        Write out a version of a monitored file with markers to show instructions where paths diverged that lead to
+        observations that VyPR recorded diverged.
+        """
         path = self.intersection()._paths[0]
         condition_lines = set()
         # doing this as a set to avoid highlighting the same lines multiple times
@@ -225,6 +235,10 @@ class PathCollection(object):
         file.close()
 
     def critical_points_in_code(self):
+        """
+        Based on the intersection of the paths held by the current collection,
+        determine the points of divergence in the relevant source code.
+        """
         path = self.intersection()._paths[0]
         condition_lines = set()
         # doing this as a set to avoid highlighting the same lines multiple times
@@ -258,13 +272,13 @@ class PathCollection(object):
 
     def merge(self, other_path_collection):
         """
-        Given another path collection, we maintain the same scfg and function name.
+        Add ``other_path_collection`` to the current list of paths.
         """
         self._paths += other_path_collection._paths
 
     def __sub__(self, other):
         """
-        Gives a PartialPathCollection with path differences.
+        Gives a ``PartialPathCollection`` with path differences.
         """
 
         if len(self._paths) != len(other._paths):
@@ -286,7 +300,8 @@ class PathCollection(object):
 
 class ParametricPathCollection(PathCollection):
     """
-    Models a collection of paths that contain SCFG vertices.
+    Models a collection of paths, all of which diverge at the same point in the source code and start at the beginning
+    of the monitored function.
     """
 
     def __init__(self, paths, scfg, function_name):
@@ -295,7 +310,7 @@ class ParametricPathCollection(PathCollection):
 
 class PartialPathCollection(PathCollection):
     """
-    Models a collection of paths which do not start from the starting vertex of the SCFG.
+    Models a collection of paths which do not start from the starting vertex of the Symbolic Control-Flow Graph.
     """
 
     def intersection(self):
@@ -309,7 +324,8 @@ class PartialPathCollection(PathCollection):
 
 class PartialParametricPathCollection(PathCollection):
     """
-    Models a collection of partial paths that contain SCFG vertices.
+    Models a collection of paths with which all diverge at the same point in the source code, and do not
+    start at the beginning of the monitored function.
     """
 
     def __init__(self, paths, scfg, function_name):
@@ -326,17 +342,17 @@ class PartialParametricPathCollection(PathCollection):
 
 class ObservationCollection(object):
     """
-    A collection of observation objects.  Defines methods for transformation to a PathCollection object.
+    A collection of observation objects.  Defines methods for transformation to a ``PathCollection`` object.
     """
 
     def __init__(self, observations):
         self._observations = observations
 
-    def to_paths(self, scfg=None):
+    def to_paths(self, scfg):
         """
-        Get the relevant SCFG for the observations,
-        and then reconstruct the paths up to each observation through the
-        SCFG and construct a PathCollection.
+        Based on the relevant Symbolic Control-Flow Graph for the current collection of observations,
+        reconstruct the paths up to each observation through the Symbolic Control-Flow Graph and return a
+        ``PathCollection``.
         """
 
         connection = get_connection()
@@ -351,7 +367,7 @@ class ObservationCollection(object):
             ).function
         )
 
-        scfg = function_obj.get_graph() if not (scfg) else scfg
+        #scfg = function_obj.get_graph() if not (scfg) else scfg
         function_name = function_obj.fully_qualified_name
 
         # get the path length of the instrumentation point of this
