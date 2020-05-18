@@ -15,6 +15,7 @@ from VyPRAnalysis.path_reconstruction import edges_from_condition_sequence, dese
 # VyPR imports
 from VyPR.SCFG.construction import *
 
+warnings_on = True
 
 class Function(object):
     """
@@ -39,7 +40,9 @@ class Function(object):
         """
         connection = get_connection()
         result = connection.request('client/function/id/%s/function_calls/' % self.id)
-        if (result == "None"): raise ValueError('no such calls')
+        if (result == "[]"):
+            if warnings_on: print('No such calls')
+            return []
         calls_dict = json.loads(result)
         calls_list = []
         for call in calls_dict:
@@ -94,8 +97,9 @@ class Function(object):
         """
         connection = get_connection()
         result = connection.request("client/function/id/%d/bindings/" % self.id)
-        if result == "None":
-            raise ValueError("No such bindings")
+        if result == "[]":
+            if warnings_on: print ("No such bindings")
+            return []
         bindings_dict = json.loads(result)
         binding_list = []
         for b in bindings_dict:
@@ -110,8 +114,9 @@ class Function(object):
         """
         connection = get_connection()
         result = connection.request("client/function/id/%d/properties/" % self.id)
-        if result == "None":
-            raise ValueError("No such properties")
+        if result == "[]":
+            if warnings_on: ("No such properties")
+            return []
         properties_dict = json.loads(result)
         property_list = []
         for prop in properties_dict:
@@ -138,8 +143,10 @@ def function(id=None, fully_qualified_name=None):
     elif fully_qualified_name is not None:
 
         functions = connection.request('client/function/name/%s/' % fully_qualified_name)
-        if functions == "None" or functions == "[]":
-            raise ValueError('no functions named %s' % fully_qualified_name)
+        if functions == "[]":
+            if warnings_on: print('no functions named %s' % fully_qualified_name)
+            return []
+
         f_dict = json.loads(functions)
         functions_list = []
 
@@ -228,8 +235,9 @@ class Binding(object):
         """
         connection = get_connection()
         result = connection.request('client/binding/id/%s/verdicts/' % self.id)
-        if result == "None":
-            raise ValueError('no such property')
+        if result == "[]":
+            if warnings_on: print('No such property')
+            return []
         else:
             result = json.loads(result)
             verdict_list = []
@@ -274,6 +282,9 @@ def binding(id=None, binding_space_index=None, function=None, binding_statement_
 
         bindings = connection.request("client/function/id/%d/bindings/" % function)
         result = json.loads(bindings)
+        if result == []:
+            if warnings_on: print("No such bindings")
+
         binding_list = []
         for b in result:
             new_binding = binding(
@@ -349,7 +360,9 @@ class FunctionCall(object):
                 raise ValueError("parse property hash or a property object as argument")
                 return
 
-        if result == "None": print('no verdicts for given function call')
+        if result == "[]":
+            if warnings_on: print('No verdicts for given function call')
+            return []
 
         verdicts_dict = json.loads(result)
         verdicts_list = []
@@ -365,7 +378,9 @@ class FunctionCall(object):
         """
         connection = get_connection()
         result = connection.request('client/function_call/id/%d/observations/' % self.id)
-        if result == "None": print('no observations for given function call')
+        if result == "[]":
+            if warnings_on: print('no observations for given function call')
+            return []
         obs_dict = json.loads(result)
         obs_list = []
         for o in obs_dict:
@@ -440,7 +455,8 @@ class TestData(object):
         """
         connection = get_connection()
         result = connection.request('client/function_call/between/%s/%s/' % (self.start_time, self.end_time))
-        if result == "None": print('No function calls occurred during test case execution with ID %i' % self.id)
+        if result == "[]":
+            if warnings_on: print('No function calls occurred during test case execution with ID %i' % self.id)
         calls_dict = json.loads(result)
         calls_list = []
         for call in calls_dict:
@@ -493,7 +509,7 @@ class Verdict(object):
         connection = get_connection()
         self.id = id
         if binding is None:
-            result = connection.request('client/get_verdict_by_id/%d/' % self.id)
+            result = connection.request('client/verdict/id/%d/' % self.id)
             if result == "None": raise ValueError('no verdicts with given ID')
             d = json.loads(result)
             self.binding = d["binding"]
@@ -530,7 +546,9 @@ class Verdict(object):
         """
         connection = get_connection()
         result = connection.request('client/verdict/id/%d/observations/' % self.id)
-        if result == "None": print('no observations for given verdict')
+        if result == "[]":
+            if warnings_on: print('No observations for given verdict')
+            return []
         obs_dict = json.loads(result)
         obs_list = []
         for o in obs_dict:
@@ -616,9 +634,9 @@ class Transaction(object):
         """
         connection = get_connection()
         result = connection.request('client/transaction/id/%d/function_calls/' % self.id)
-        if result == "None":
-            print('no calls during the given request')
-            return
+        if result == "[]":
+            print('No calls during the given request')
+            return []
         calls_dict = json.loads(result)
         calls_list = []
         for call in calls_dict:
@@ -737,9 +755,9 @@ class instrumentation_point:
         """
         connection = get_connection()
         result = connection.request('client/instrumentation_point/id/%d/observations/' % self.id)
-        if result == "None":
+        if result == "[]":
             print('no observations for given instrumentation point')
-            return
+            return []
         obs_dict = json.loads(result)
         obs_list = []
         for o in obs_dict:
@@ -786,7 +804,9 @@ class Observation(object):
     def get_assignments(self):
         connection = get_connection()
         result = connection.request('client/observation/id/%d/assignments/' % self.id)
-        if result == "None": raise ValueError('no assignments paired with given observation')
+        if result == "[]":
+            if warnings_on: ('No assignments paired with given observation')
+            return []
         assignment_dict = json.loads(result)
         assignment_list = []
         for a in assignment_dict:
@@ -857,7 +877,7 @@ class Assignment(object):
         connection = get_connection()
         self.id = id
         result = connection.request('client/assignment/id/%d/' % self.id)
-        if result == "None": raise ValueError('there is no assignment with given id')
+        if result == "None": raise ValueError('There is no assignment with given ID')
         d = json.loads(result)
         self.variable = d["variable"]
         self.value = d["value"]  # is it better to keep this serialised or to deserialise it?
