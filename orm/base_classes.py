@@ -85,6 +85,7 @@ class Function(object):
         # construct the scfg of the code inside the function
         scfg = CFG()
         scfg.process_block(function_def.body)
+        print(type(scfg))
         return scfg
 
     def get_bindings(self):
@@ -134,7 +135,8 @@ def function(id=None, fully_qualified_name=None):
     elif fully_qualified_name is not None:
 
         functions = connection.request('client/function/name/%s/' % fully_qualified_name)
-        if functions == "None": raise ValueError('no functions named %s' % fully_qualified_name)
+        if functions == "None" or functions == "[]":
+            raise ValueError('no functions named %s' % fully_qualified_name)
         f_dict = json.loads(functions)
         functions_list = []
 
