@@ -16,4 +16,5 @@ VyPR Analysis Library documentation
    orm-classes
    call-trees
    path-analysis
+   config-functions
    reference
