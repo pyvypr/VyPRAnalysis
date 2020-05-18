@@ -1,9 +1,3 @@
-"""
-VyPR analysis library.
-Authors:
-Marta Han - University of Zagreb, CERN
-Joshua Dawes - University of Manchester, CERN.
-"""
 import json
 import sys
 
@@ -16,7 +10,6 @@ vypr_path = "VyPRAnalysis"
 monitored_service_path = None
 
 sys.path.append(vypr_path)
-
 
 
 def set_config_file(config_file_name='config.json'):
@@ -35,8 +28,7 @@ def set_config_file(config_file_name='config.json'):
 
 def set_server(given_url):
     """
-    server_url is a global variable which can be changed
-    by passing a string to the set_server() function
+    Set the server for the analysis library to ``given_url`` and then perform a handshake.
     """
     global server_url, connection
     server_url = given_url
@@ -71,6 +63,9 @@ def set_vypr_path(path):
 
 
 def set_monitored_service_path(path):
+    """
+    Set the path of the monitored service to ``path`` .  No existence or permission checks are currently performed.
+    """
     global monitored_service_path
     monitored_service_path = path
     return monitored_service_path
@@ -83,7 +78,8 @@ def get_monitored_service_path():
 
 def prepare(db=None):
     """
-    Given the database name (optional), sets up the verdict server.
+    Given the database file name ``db``, set up an instance of a verdict server attached to that database
+    in the background and then attempt to perform a handshake until the server is reachable.
     """
     import subprocess
     cmd = "cd VyPRServer/ && python run_service.py --port 9002 "
@@ -105,6 +101,11 @@ def prepare(db=None):
 
 
 def teardown():
+    """
+    Shut down the verdict server to which the analysis library is currently pointing.
+
+    Intended use is at the end of a script that began with ``prepare('...')``.
+    """
     global connection
     try:
         connection.request("shutdown/")

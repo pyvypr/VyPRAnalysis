@@ -14,9 +14,7 @@
 #
 import os
 import sys
-sys.path.insert(0, '/Users/jdawes/VyPR-web-service-setup-area/SampleWebService')
-
-print(sys.path)
+sys.path.insert(0, os.path.abspath('../../'))
 
 
 # -- Project information -----------------------------------------------------
