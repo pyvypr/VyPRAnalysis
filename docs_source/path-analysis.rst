@@ -30,7 +30,7 @@ Observation Collections
 
 The basis of the analysis library's path comparison facilities is the ``ObservationCollection`` class.
 
-The idea is that, once you have a list of ``Observation`` objects (:doc:`references/orm-base-classes`),
+The idea is that, once you have a list of ``Observation`` objects (:doc:`reference/orm-base-classes`),
 you can form an ``ObservationCollection`` object, which provides methods that reconstruct the paths taken by
 the relevant monitored functions to reach the observations given.
 
