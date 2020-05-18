@@ -37,7 +37,7 @@ def set_server(given_url):
     try:
         response = connection.handshake()
     except:
-        print("Failed to connect to server.")
+        raise Exception("Failed to connect to server.")
 
 
 def get_server():
@@ -96,6 +96,7 @@ def prepare(db=None):
             handshake_failed = False
         except:
             handshake_failed = True
+
     if not handshake_failed: print("Connected to server")
 
 
