@@ -1,5 +1,5 @@
 """
-Base ORM classes.
+**Classes for things VyPR measures**
 """
 import json
 import os
@@ -90,7 +90,7 @@ class Function(object):
 
     def get_bindings(self):
         """
-        Get the list of Binding objects belonging to this function, regardless of their query.
+        Get the list of Binding objects belonging to this function, regardless of their property.
         """
         connection = get_connection()
         result = connection.request("client/function/id/%d/bindings/" % self.id)
@@ -105,6 +105,9 @@ class Function(object):
         return binding_list
 
     def get_properties(self):
+        """
+        Get the list of Property objects for properties that were monitored over the current function.
+        """
         connection = get_connection()
         result = connection.request("client/function/id/%d/properties/" % self.id)
         if result == "None":
@@ -120,7 +123,7 @@ class Function(object):
 
 def function(id=None, fully_qualified_name=None):
     """
-    Factory function for either getting a single function, or a list of functions.
+    Factory function for either getting a single function, or a list of functions, depending on the input.
     """
 
     connection = get_connection()
@@ -159,6 +162,9 @@ def function(id=None, fully_qualified_name=None):
 
 
 class Property(object):
+    """
+    Class for properties.  Each distinct property used to query the monitored program generates an instance.
+    """
 
     def __init__(self, hash, serialised_structure=None, index_in_specification_file=None):
         if (serialised_structure==None or index_in_specification_file==None):
@@ -179,7 +185,11 @@ class Property(object):
     def __repr__(self):
         return "<Property hash=%s>" % self.hash
 
+
 def property(hash, serialised_structure=None, index_in_specification_file=None):
+    """
+    Factory function for either getting a single property property, or a list, depending on the input.
+    """
     if (hash != None and serialised_structure!=None and index_in_specification_file!=None):
         return Property(hash, serialised_structure, index_in_specification_file)
     else:
@@ -189,7 +199,7 @@ def property(hash, serialised_structure=None, index_in_specification_file=None):
 
 class Binding(object):
     """
-    A class for bindings
+    A class for bindings.  Each binding recognised by instrumentation generates an instance.
     """
     def __init__(self, id, binding_space_index, function, binding_statement_lines, property_hash):
         self.id = id
@@ -213,6 +223,9 @@ class Binding(object):
                )
 
     def get_verdicts(self):
+        """
+        Get a list of all verdicts attached to the current binding.
+        """
         connection = get_connection()
         result = connection.request('client/binding/id/%s/verdicts/' % self.id)
         if result == "None":
@@ -228,6 +241,9 @@ class Binding(object):
 
 
 def binding(id=None, binding_space_index=None, function=None, binding_statement_lines=None, property_hash=None):
+    """
+    Factory function for getting either a single binding object, or a list, depending on input.
+    """
     connection = get_connection()
 
     if (id is not None and binding_space_index is not None and function is not None and
@@ -277,8 +293,9 @@ def binding(id=None, binding_space_index=None, function=None, binding_statement_
 
 
 class FunctionCall(object):
-    """class function_call represents the homonymous table in the database
-    initialized by either just the id or all the values"""
+    """
+    Class for function calls.  Each distinct call of a monitored function generates an instance.
+    """
 
     def __init__(self, id, function, time_of_call, end_time_of_call, trans, path_condition_id_sequence):
         self.id = id
@@ -301,6 +318,13 @@ class FunctionCall(object):
                )
 
     def get_verdicts(self, value=None, property=None):
+        """
+        Get a list of verdicts generated during the current function call.
+        Value can be 1 or 0.
+            If value is given, verdicts will only have that value.
+        Property can either be a property ID or object.
+            If property is given, verdicts will be associated with that property.
+        """
         connection = get_connection()
         if value == None and property==None:
             result = connection.request('client/function_call/id/%d/verdicts/' % self.id)
@@ -336,6 +360,9 @@ class FunctionCall(object):
         return verdicts_list
 
     def get_observations(self):
+        """
+        Get the list of observations generated during the current function call.
+        """
         connection = get_connection()
         result = connection.request('client/function_call/id/%d/observations/' % self.id)
         if result == "None": print('no observations for given function call')
@@ -348,7 +375,9 @@ class FunctionCall(object):
         return obs_list
 
     def reconstruct_path(self, scfg):
-        """Locally reconstruct the entire path taken by this function call (if there was path instrumentation)."""
+        """
+        Locally reconstruct the entire path taken by this function call (if there was path instrumentation).
+        """
         connection = get_connection()
         json_result = connection.request('client/get_path_conditions_by_function_call_id/%i/' % self.id)
         path_condition_list = json.loads(json_result)
@@ -382,6 +411,10 @@ def function_call(id):
 
 
 class TestData(object):
+    """
+    Class for test data instances.
+    Each distinct test case execution, in the testing scenario, generates a distinct instance.
+    """
 
     def __init__(self, id, test_name, test_result, start_time, end_time):
         self.id = id
@@ -404,7 +437,6 @@ class TestData(object):
     def get_function_calls(self):
         """
         Get the list of FunctionCall objects representing function calls during this test case execution.
-        :return: List of FunctionCall objects.
         """
         connection = get_connection()
         result = connection.request('client/function_call/between/%s/%s/' % (self.start_time, self.end_time))
@@ -452,9 +484,9 @@ def test_data(id=None, test_name=None, test_result=None, start_time=None, end_ti
 
 
 class Verdict(object):
-    """class verdict has the same objects as the table verdict in the database
-    initialized by either just the id or all the values
-    function verdict.get_atom() returns the atom which the given verdict concerns"""
+    """
+    Class for verdicts.  Each True or False result generated by monitoring at runtime has an instance.
+    """
 
     def __init__(self, id, binding=None, verdict=None, time_obtained=None, function_call=None, collapsing_atom=None,
                  collapsing_atom_sub_index=None):
@@ -494,7 +526,7 @@ class Verdict(object):
 
     def get_observations(self):
         """
-        Get a list of the observations that were needed to obtain this verdict.
+        Get a list of the observations that were needed to obtain the current verdict.
         """
         connection = get_connection()
         result = connection.request('client/verdict/id/%d/observations/' % self.id)
@@ -511,7 +543,7 @@ class Verdict(object):
 def verdict(id=None, binding=None, verdict=None, time_obtained=None, function_call=None, collapsing_atom=None,
             collapsing_atom_sub_index=None):
     """
-    Factory function for verdicts.
+    Factory function for verdicts.  Gives a single Verdict object or a list, depending on input.
     """
 
     connection = get_connection()
@@ -552,8 +584,10 @@ def verdict(id=None, binding=None, verdict=None, time_obtained=None, function_ca
 
 class Transaction(object):
     """
-    class trans represents the trans table in the database
-    initialized as trans(id=1) or trans(time_of_transaction=t)
+    Class for transactions.
+    For web services, transactions are HTTP requests.
+    For normal programs, transactions are program runs.
+    For testing, transactions are test class instances generated.
     """
 
     def __init__(self, id=None, time_of_transaction=None, time_lower_bound=None, time_upper_bound=None):
@@ -577,6 +611,9 @@ class Transaction(object):
             raise ValueError('either id or time_of_transaction argument required')
 
     def get_calls(self):
+        """
+        Get a list of all function calls that occurred during the current transaction.
+        """
         connection = get_connection()
         result = connection.request('client/transaction/id/%d/function_calls/' % self.id)
         if result == "None":
@@ -602,7 +639,7 @@ class Transaction(object):
 
 def transaction(id=None, time_of_transaction=None, time_lower_bound=None, time_upper_bound=None):
     """
-    Factory function for transactions.
+    Factory function for transactions.  Returns a single object or a list depending on the input.
     """
     connection = get_connection()
     if time_lower_bound is not None and time_upper_bound is not None:
@@ -622,8 +659,8 @@ def transaction(id=None, time_of_transaction=None, time_lower_bound=None, time_u
 
 class Atom(object):
     """
-    initialized as either atom(id=n) or atom(index_in_atoms=n, property_hash=hash)
-    or with all arguments if known
+    Class for atoms.  Atoms are the lowest-level parts of properties that define constraints over
+    measurable quantities.  Each such part generates an instance of this class.
     """
 
     def __init__(self, id=None, property_hash=None, serialised_structure=None, index_in_atoms=None):
@@ -666,7 +703,7 @@ class Atom(object):
 
     def get_structure(self):
         """
-        atom.get_structure() returns the serialised structure of the atom in decoded format
+        Get the atom as an object using classes from the VyPR Core internals.
         """
         result = self.serialised_structure
         obj = pickle.loads(base64.decodestring(result.encode('ascii')))
@@ -674,6 +711,10 @@ class Atom(object):
 
 
 class instrumentation_point:
+    """
+    Class for instrumentation points.  Each point identified in the monitored program as being needed generates
+    an instance here.
+    """
 
     def __init__(self, id, serialised_condition_sequence=None, reaching_path_length=None):
         connection = get_connection()
@@ -691,6 +732,9 @@ class instrumentation_point:
             self.reaching_path_length = reaching_path_length
 
     def get_observations(self):
+        """
+        Get the list of all observations recorded by VyPR at the current point in the monitored program.
+        """
         connection = get_connection()
         result = connection.request('client/instrumentation_point/id/%d/observations/' % self.id)
         if result == "None":
@@ -706,6 +750,10 @@ class instrumentation_point:
 
 
 class Observation(object):
+    """
+    Class for observations.  Every measurement made by VyPR to decide whether the property
+    defined by a query is True or False generates an instance.
+    """
 
     def __init__(self, id, instrumentation_point=None, verdict=None, observed_value=None, observation_time=None,
                  observation_end_time=None, atom_index=None, sub_index=None, previous_condition_offset=None):
@@ -747,10 +795,15 @@ class Observation(object):
         return assignment_list
 
     def get_instrumentation_point(self):
+        """
+        Get the point in the monitored program that generates the current observation.
+        """
         return instrumentation_point(id=self.instrumentation_point)
 
     def reconstruct_reaching_path(self, scfg):
-        """Reconstruct the sequence of edges to reach this observation through the SCFG given."""
+        """
+        Reconstruct the sequence of edges to reach this observation through the Symbolic Control-Flow Graph given.
+        """
         connection = get_connection()
         json_result = connection.request('client/get_path_condition_sequence/%i/' % self.id)
         result_dict = json.loads(json_result)

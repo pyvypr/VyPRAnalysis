@@ -32,15 +32,12 @@ class CallTreeVertex(object):
         """
         Given a lower and upper bound on time, find the children of this vertex which are roots
         of subtrees whose timestamps fall within the interval given.
-        :param time_lower_bound:
-        :param time_upper_bound:
-        :return: the roots of subtrees whose root vertex falls within the time interval given.
         """
         final_list = []
         for child in self._children:
             if type(child._call_obj) is FunctionCall:
                 if (child._call_obj.time_of_call >= time_lower_bound
-                    and child._call_obj.end_time_of_call <= time_upper_bound):
+                        and child._call_obj.end_time_of_call <= time_upper_bound):
                     final_list.append(child)
             else:
                 if time_lower_bound <= child._call_obj.time_of_transaction <= time_upper_bound:
@@ -49,15 +46,13 @@ class CallTreeVertex(object):
 
 
 class CallTree(object):
-    """Models a graph structure derived from the list of calls that happened during a transaction/http request.
-    Note: we have a tree because, even with recursion, vertices are calls, and not
-    actual functions, so we cannot have cycles."""
+    """
+    A tree derived of the calls that took place during a transaction/http request.
+    """
 
     def __init__(self, transaction):
         """
-        Given transaction, get all calls that happened during it and construct a tree.
-        Take into account the fact that multiple machines may have generated calls, in which case, if we process
-        a call with no child calls, we search for a transaction occurring during that call from another machine.
+        Given a transaction, get all calls that happened during it and construct a tree.
         """
 
         self._vertices = []
@@ -78,10 +73,6 @@ class CallTree(object):
         self._vertices.append(vertex)
 
     def get_vertex_from_call(self, call):
-        """
-        :param call:
-        :return: CallTreeVertex whose call object is call
-        """
         # find the vertex that holds the given call
         relevant_vertices = \
             list(filter(
@@ -100,16 +91,15 @@ class CallTree(object):
         """
         Given a time interval and a call, determine the child vertices that fit within a given time interval.
         Note: this time interval will usually be derived from an observation occurring during that call.
-        :param time_lower_bound:
-        :param time_upper_bound:
-        :return: a list of call tree vertices whose call objects occur inside the time interval given.
         """
         relevant_vertex = self.get_vertex_from_call(call)
         valid_children = relevant_vertex.get_subtree_roots_in_interval(time_lower_bound, time_upper_bound)
         return valid_children
 
     def get_direct_callees(self, call):
-        """Given a call, find its vertex and then return its children."""
+        """
+        Given a call, find its vertex and then return its children.
+        """
         relevant_vertex = self.get_vertex_from_call(call)
         direct_callees = list(map(lambda vertex : vertex._call_obj, relevant_vertex.get_callees()))
         return direct_callees
@@ -117,8 +107,6 @@ class CallTree(object):
     def get_reachable(self, call):
         """
         Given a call, perform stack-based traversal to find all reachable calls in the tree.
-        :param call:
-        :return:
         """
         relevant_vertex = self.get_vertex_from_call(call)
 
@@ -137,9 +125,10 @@ class CallTree(object):
             stack += direct_callees
         return final_list_of_callees
 
-
     def process_vertex(self, root, calls):
-        """Given a root and a list of child calls, construct the subtree rooted here."""
+        """
+        Given a root and a list of child calls, construct the subtree rooted here.
+        """
 
         # copy the list so we don't modify
         # the list used after the recursive call
@@ -195,9 +184,6 @@ class CallTree(object):
         """
         Given a CallTreeVertex and a CallTree, add the root of the call tree as a child of the vertex
         and copy all vertices over into the vertex set of the call tree.
-        :param vertex:
-        :param subtree:
-        :return: None
         """
         vertex.add_child(subtree._root)
         self._vertices += subtree._vertices
