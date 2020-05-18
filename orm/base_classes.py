@@ -85,7 +85,6 @@ class Function(object):
         # construct the scfg of the code inside the function
         scfg = CFG()
         scfg.process_block(function_def.body)
-        print(type(scfg))
         return scfg
 
     def get_bindings(self):
@@ -512,7 +511,7 @@ class Verdict(object):
 
     def __repr__(self):
         return "<%s id=%i, binding=%i, verdict=%i, time_obtained=%s, function_call=%i, collapsing_atom=%i, " \
-               "collapsing_atom_sub_index=%i" % \
+               "collapsing_atom_sub_index=%i>" % \
                (
                    self.__class__.__name__,
                    self.id,
