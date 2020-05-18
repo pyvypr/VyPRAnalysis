@@ -384,7 +384,7 @@ class PartialPathCollection(PathCollection):
 
 class PartialParametricPathCollection(PathCollection):
     """
-    Models a collection of paths with which all diverge at the same point in the source code, and do not
+    Models a collection of paths which all diverge at the same point in the source code, and do not
     start at the beginning of the monitored function.
     """
 
