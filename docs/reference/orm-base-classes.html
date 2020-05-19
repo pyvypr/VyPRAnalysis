@@ -1,0 +1,432 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Base Classes for Database Objects &mdash; VyPR Analysis Library  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Functions for Operations on Database Objects" href="orm-operations.html" />
+    <link rel="prev" title="Interprocedural Analysis" href="interprocedural.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> VyPR Analysis Library
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../getting-started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../querying.html">Querying Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../orm-classes.html">The Object-Relational Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../call-trees.html">Call Trees</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../path-analysis.html">Path Analysis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../config-functions.html">Configuring VyPR Analysis</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../reference.html">VyPR Analysis Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="interprocedural.html">Interprocedural Analysis</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Base Classes for Database Objects</a></li>
+<li class="toctree-l2"><a class="reference internal" href="orm-operations.html">Functions for Operations on Database Objects</a></li>
+<li class="toctree-l2"><a class="reference internal" href="path-analysis.html">Path Analysis Utilities</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">VyPR Analysis Library</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../reference.html">VyPR Analysis Reference</a> &raquo;</li>
+        
+      <li>Base Classes for Database Objects</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/reference/orm-base-classes.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="base-classes-for-database-objects">
+<h1>Base Classes for Database Objects<a class="headerlink" href="#base-classes-for-database-objects" title="Permalink to this headline">¶</a></h1>
+<p><strong>Classes for things VyPR measures</strong></p>
+<dl class="class">
+<dt>
+<em class="property">class </em><code class="descclassname">VyPRAnalysis.orm.base_classes.</code><code class="descname">Atom</code><span class="sig-paren">(</span><em>id=None</em>, <em>property_hash=None</em>, <em>serialised_structure=None</em>, <em>index_in_atoms=None</em><span class="sig-paren">)</span></dt>
+<dd><p>Class for atoms.  Atoms are the lowest-level parts of properties that define constraints over
+measurable quantities.  Each such part generates an instance of this class.</p>
+<dl class="method">
+<dt>
+<code class="descname">get_structure</code><span class="sig-paren">(</span><span class="sig-paren">)</span></dt>
+<dd><p>Get the atom as an object using classes from the VyPR Core internals.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt>
+<em class="property">class </em><code class="descclassname">VyPRAnalysis.orm.base_classes.</code><code class="descname">Binding</code><span class="sig-paren">(</span><em>id</em>, <em>binding_space_index</em>, <em>function</em>, <em>binding_statement_lines</em>, <em>property_hash</em><span class="sig-paren">)</span></dt>
+<dd><p>A class for bindings.  Each binding recognised by instrumentation generates an instance.</p>
+<dl class="method">
+<dt>
+<code class="descname">get_verdicts</code><span class="sig-paren">(</span><span class="sig-paren">)</span></dt>
+<dd><p>Get a list of all verdicts attached to the current binding.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt>
+<em class="property">class </em><code class="descclassname">VyPRAnalysis.orm.base_classes.</code><code class="descname">Function</code><span class="sig-paren">(</span><em>id</em>, <em>fully_qualified_name</em><span class="sig-paren">)</span></dt>
+<dd><p>Class for functions.  Each monitored function generates its own instance.</p>
+<dl class="method">
+<dt>
+<code class="descname">get_bindings</code><span class="sig-paren">(</span><span class="sig-paren">)</span></dt>
+<dd><p>Get the list of Binding objects belonging to this function, regardless of their property.</p>
+</dd></dl>
+
+<dl class="method">
+<dt>
+<code class="descname">get_calls</code><span class="sig-paren">(</span><span class="sig-paren">)</span></dt>
+<dd><p>Get a list of calls for the current function.</p>
+</dd></dl>
+
+<dl class="method">
+<dt>
+<code class="descname">get_properties</code><span class="sig-paren">(</span><span class="sig-paren">)</span></dt>
+<dd><p>Get the list of Property objects for properties that were monitored over the current function.</p>
+</dd></dl>
+
+<dl class="method">
+<dt>
+<code class="descname">get_scfg</code><span class="sig-paren">(</span><span class="sig-paren">)</span></dt>
+<dd><p>Construct the Symbolic Control-Flow Graph of the current function.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt>
+<em class="property">class </em><code class="descclassname">VyPRAnalysis.orm.base_classes.</code><code class="descname">FunctionCall</code><span class="sig-paren">(</span><em>id</em>, <em>function</em>, <em>time_of_call</em>, <em>end_time_of_call</em>, <em>trans</em>, <em>path_condition_id_sequence</em><span class="sig-paren">)</span></dt>
+<dd><p>Class for function calls.  Each distinct call of a monitored function generates an instance.</p>
+<dl class="method">
+<dt>
+<code class="descname">get_observations</code><span class="sig-paren">(</span><span class="sig-paren">)</span></dt>
+<dd><p>Get the list of observations generated during the current function call.</p>
+</dd></dl>
+
+<dl class="method">
+<dt>
+<code class="descname">get_verdicts</code><span class="sig-paren">(</span><em>value=None</em>, <em>property=None</em><span class="sig-paren">)</span></dt>
+<dd><p>Get a list of verdicts generated during the current function call.
+Value can be 1 or 0.</p>
+<blockquote>
+<div>If value is given, verdicts will only have that value.</div></blockquote>
+<dl class="docutils">
+<dt>Property can either be a property ID or object.</dt>
+<dd>If property is given, verdicts will be associated with that property.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt>
+<code class="descname">reconstruct_path</code><span class="sig-paren">(</span><em>scfg</em><span class="sig-paren">)</span></dt>
+<dd><p>Locally reconstruct the entire path taken by this function call (if there was path instrumentation).</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt>
+<em class="property">class </em><code class="descclassname">VyPRAnalysis.orm.base_classes.</code><code class="descname">Observation</code><span class="sig-paren">(</span><em>id</em>, <em>instrumentation_point=None</em>, <em>verdict=None</em>, <em>observed_value=None</em>, <em>observation_time=None</em>, <em>observation_end_time=None</em>, <em>atom_index=None</em>, <em>sub_index=None</em>, <em>previous_condition_offset=None</em><span class="sig-paren">)</span></dt>
+<dd><p>Class for observations.  Every measurement made by VyPR to decide whether the property
+defined by a query is True or False generates an instance.</p>
+<dl class="method">
+<dt>
+<code class="descname">get_instrumentation_point</code><span class="sig-paren">(</span><span class="sig-paren">)</span></dt>
+<dd><p>Get the point in the monitored program that generates the current observation.</p>
+</dd></dl>
+
+<dl class="method">
+<dt>
+<code class="descname">reconstruct_reaching_path</code><span class="sig-paren">(</span><em>scfg</em><span class="sig-paren">)</span></dt>
+<dd><p>Reconstruct the sequence of edges to reach this observation through the Symbolic Control-Flow Graph given.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt>
+<em class="property">class </em><code class="descclassname">VyPRAnalysis.orm.base_classes.</code><code class="descname">Property</code><span class="sig-paren">(</span><em>hash</em>, <em>serialised_structure=None</em>, <em>index_in_specification_file=None</em><span class="sig-paren">)</span></dt>
+<dd><p>Class for properties.  Each distinct property used to query the monitored program generates an instance.</p>
+</dd></dl>
+
+<dl class="class">
+<dt>
+<em class="property">class </em><code class="descclassname">VyPRAnalysis.orm.base_classes.</code><code class="descname">TestData</code><span class="sig-paren">(</span><em>id</em>, <em>test_name</em>, <em>test_result</em>, <em>start_time</em>, <em>end_time</em><span class="sig-paren">)</span></dt>
+<dd><p>Class for test data instances.
+Each distinct test case execution, in the testing scenario, generates a distinct instance.</p>
+<dl class="method">
+<dt>
+<code class="descname">get_function_calls</code><span class="sig-paren">(</span><span class="sig-paren">)</span></dt>
+<dd><p>Get the list of FunctionCall objects representing function calls during this test case execution.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt>
+<em class="property">class </em><code class="descclassname">VyPRAnalysis.orm.base_classes.</code><code class="descname">Transaction</code><span class="sig-paren">(</span><em>id=None</em>, <em>time_of_transaction=None</em>, <em>time_lower_bound=None</em>, <em>time_upper_bound=None</em><span class="sig-paren">)</span></dt>
+<dd><p>Class for transactions.
+For web services, transactions are HTTP requests.
+For normal programs, transactions are program runs.
+For testing, transactions are test class instances generated.</p>
+<dl class="method">
+<dt>
+<code class="descname">get_calls</code><span class="sig-paren">(</span><span class="sig-paren">)</span></dt>
+<dd><p>Get a list of all function calls that occurred during the current transaction.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt>
+<em class="property">class </em><code class="descclassname">VyPRAnalysis.orm.base_classes.</code><code class="descname">Verdict</code><span class="sig-paren">(</span><em>id</em>, <em>binding=None</em>, <em>verdict=None</em>, <em>time_obtained=None</em>, <em>function_call=None</em>, <em>collapsing_atom=None</em>, <em>collapsing_atom_sub_index=None</em><span class="sig-paren">)</span></dt>
+<dd><p>Class for verdicts.  Each True or False result generated by monitoring at runtime has an instance.</p>
+<dl class="method">
+<dt>
+<code class="descname">get_observations</code><span class="sig-paren">(</span><span class="sig-paren">)</span></dt>
+<dd><p>Get a list of the observations that were needed to obtain the current verdict.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt>
+<code class="descclassname">VyPRAnalysis.orm.base_classes.</code><code class="descname">binding</code><span class="sig-paren">(</span><em>id=None</em>, <em>binding_space_index=None</em>, <em>function=None</em>, <em>binding_statement_lines=None</em>, <em>property_hash=None</em><span class="sig-paren">)</span></dt>
+<dd><p>Factory function for getting either a single binding object, or a list, depending on input.</p>
+</dd></dl>
+
+<dl class="function">
+<dt>
+<code class="descclassname">VyPRAnalysis.orm.base_classes.</code><code class="descname">function</code><span class="sig-paren">(</span><em>id=None</em>, <em>fully_qualified_name=None</em><span class="sig-paren">)</span></dt>
+<dd><p>Factory function for either getting a single function, or a list of functions, depending on the input.</p>
+</dd></dl>
+
+<dl class="function">
+<dt>
+<code class="descclassname">VyPRAnalysis.orm.base_classes.</code><code class="descname">function_call</code><span class="sig-paren">(</span><em>id</em><span class="sig-paren">)</span></dt>
+<dd><p>Factory function for function calls.
+The only way this needs to be used is with the ID of the function call.
+Otherwise, methods on other ORM objects can be used.</p>
+</dd></dl>
+
+<dl class="class">
+<dt>
+<em class="property">class </em><code class="descclassname">VyPRAnalysis.orm.base_classes.</code><code class="descname">instrumentation_point</code><span class="sig-paren">(</span><em>id</em>, <em>serialised_condition_sequence=None</em>, <em>reaching_path_length=None</em><span class="sig-paren">)</span></dt>
+<dd><p>Class for instrumentation points.  Each point identified in the monitored program as being needed generates
+an instance here.</p>
+<dl class="method">
+<dt>
+<code class="descname">get_observations</code><span class="sig-paren">(</span><span class="sig-paren">)</span></dt>
+<dd><p>Get the list of all observations recorded by VyPR at the current point in the monitored program.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt>
+<code class="descclassname">VyPRAnalysis.orm.base_classes.</code><code class="descname">observation</code><span class="sig-paren">(</span><em>id</em>, <em>instrumentation_point=None</em>, <em>verdict=None</em>, <em>observed_value=None</em>, <em>observation_time=None</em>, <em>observation_end_time=None</em>, <em>atom_index=None</em>, <em>sub_index=None</em>, <em>previous_condition_offset=None</em><span class="sig-paren">)</span></dt>
+<dd><p>Factory function for observations.</p>
+</dd></dl>
+
+<dl class="function">
+<dt>
+<code class="descclassname">VyPRAnalysis.orm.base_classes.</code><code class="descname">property</code><span class="sig-paren">(</span><em>hash</em>, <em>serialised_structure=None</em>, <em>index_in_specification_file=None</em><span class="sig-paren">)</span></dt>
+<dd><p>Factory function for either getting a single property property, or a list, depending on the input.</p>
+</dd></dl>
+
+<dl class="function">
+<dt>
+<code class="descclassname">VyPRAnalysis.orm.base_classes.</code><code class="descname">test_data</code><span class="sig-paren">(</span><em>id=None</em>, <em>test_name=None</em>, <em>test_result=None</em>, <em>start_time=None</em>, <em>end_time=None</em><span class="sig-paren">)</span></dt>
+<dd><p>Factory function for test data rows.</p>
+</dd></dl>
+
+<dl class="function">
+<dt>
+<code class="descclassname">VyPRAnalysis.orm.base_classes.</code><code class="descname">transaction</code><span class="sig-paren">(</span><em>id=None</em>, <em>time_of_transaction=None</em>, <em>time_lower_bound=None</em>, <em>time_upper_bound=None</em><span class="sig-paren">)</span></dt>
+<dd><p>Factory function for transactions.  Returns a single object or a list depending on the input.</p>
+</dd></dl>
+
+<dl class="function">
+<dt>
+<code class="descclassname">VyPRAnalysis.orm.base_classes.</code><code class="descname">verdict</code><span class="sig-paren">(</span><em>id=None</em>, <em>binding=None</em>, <em>verdict=None</em>, <em>time_obtained=None</em>, <em>function_call=None</em>, <em>collapsing_atom=None</em>, <em>collapsing_atom_sub_index=None</em><span class="sig-paren">)</span></dt>
+<dd><p>Factory function for verdicts.  Gives a single Verdict object or a list, depending on input.</p>
+</dd></dl>
+
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="orm-operations.html" class="btn btn-neutral float-right" title="Functions for Operations on Database Objects" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="interprocedural.html" class="btn btn-neutral float-left" title="Interprocedural Analysis" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Joshua Heneage Dawes, Marta Han
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
