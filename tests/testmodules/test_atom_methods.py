@@ -1,4 +1,6 @@
 from . import parent_setup
+import VyPRAnalysis as va
+import VyPR
 
 class test_atom_methods(parent_setup):
 

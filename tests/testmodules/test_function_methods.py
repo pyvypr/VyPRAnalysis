@@ -1,4 +1,7 @@
 import unittest
+import VyPRAnalysis as va
+import VyPR
+import os
 
 class test_function_methods(unittest.TestCase):
 

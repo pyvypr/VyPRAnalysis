@@ -1,4 +1,5 @@
 from . import parent_setup
+import VyPRAnalysis as va
 
 class test_function_call_methods(parent_setup):
 

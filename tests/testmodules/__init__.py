@@ -1,5 +1,5 @@
 import unittest
-from . import *
+import VyPRAnalysis as va
 
 class parent_setup(unittest.TestCase):
     def setUp(self):

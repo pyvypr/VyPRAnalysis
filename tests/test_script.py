@@ -5,10 +5,18 @@ sys.path.append("../../")
 import VyPRAnalysis as va
 import VyPR
 import unittest
-from testmodules import (test_binding_methods, test_function_methods, test_property_methods,
-test_verdict_methods, test_global_methods, test_testdata_methods, test_assignment_methods,
-test_function_call_methods, test_instrumentation_point_methods, test_transaction_methods, test_atom_methods,
-test_observation_methods)
+from testmodules.test_binding_methods import *
+from testmodules.test_function_methods import *
+from testmodules.test_property_methods import *
+from testmodules.test_verdict_methods import *
+from testmodules.test_global_methods import *
+from testmodules.test_testdata_methods import *
+from testmodules.test_assignment_methods import *
+from testmodules.test_function_call_methods import *
+from testmodules.test_instrumentation_point_methods import *
+from testmodules.test_transaction_methods import *
+from testmodules.test_atom_methods import *
+from testmodules.test_observation_methods import *
 
 
 

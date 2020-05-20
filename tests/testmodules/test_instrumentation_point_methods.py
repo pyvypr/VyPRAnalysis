@@ -1,4 +1,5 @@
 from . import parent_setup
+import VyPRAnalysis as va
 
 class test_instrumentation_point_methods(parent_setup):
 
