@@ -1,0 +1,466 @@
+"""
+
+Joshua Dawes - CMS, CERN - The University of Manchester
+
+"""
+import os
+import subprocess
+from flask import g, jsonify, abort, request, make_response, render_template
+from sqlalchemy.exc import IntegrityError
+import datetime
+import json
+import base64
+import sqlalchemy
+import hashlib
+import logging
+import traceback
+import importlib
+from os.path import join
+
+#from app import db
+from app import app
+import config
+from errors import *
+from usage import Usage
+import CondDBFW
+from sync_validation import convert
+import database
+from CondDBFW.utils import to_timestamp, to_datetime, friendly_since
+
+def get_usage_object(connection):
+    upload_session_id = request.args.get("upload_session_id")
+    if upload_session_id == None:
+        return json.dumps({"error" : "No upload session ID given."})
+
+    usage = Usage(upload_session_id, connection)
+    return usage
+
+@app.route('/', methods=["GET", "POST"])
+@app.route('/index', methods=["GET", "POST"])
+def index():
+    gitInfo = run_in_shell('/usr/bin/git describe --all --long', shell = True)
+    return render_template('index.html', lastUpdate=datetime.datetime.utcnow(), gitInfo=gitInfo)
+
+@app.route('/python_version/')
+def python_version():
+    import sys
+    return make_response(jsonify({"version" : str(sys.version_info)}), 200)
+
+@app.route('/conddbfw_dir/')
+def conddbfw_dir():
+    return str(CondDBFW.__file__)
+
+@app.route("/db_test/", methods=["GET"])
+def db_test():
+    if request.args.get("database") == None:
+        return "No database given."
+    connection = database.Connection().get_conddbfw_con()
+    tag = connection.tag().all().data()[0]
+    connection.close_session()
+    return str(tag.as_dict())
+
+# for use with local deployment script
+# the local script queries this end point to find the version of CondDBFW it should have
+# and then pulls from the gitlab repository if necessary.
+@app.route('/conddbfw_version/', methods=["GET"])
+def conddbfw_version():
+    conddbfw_git_info = run_in_shell('cd /data/services/common/CondDBFW/; git rev-parse HEAD', shell=True)
+    return jsonify({"hash" : str(conddbfw_git_info).strip(), "repo" : "ssh://git@gitlab.cern.ch:7999/cms-ppdweb/cmsCondMiniFramework.git"})
+
+# queried by client side, gets the upload script
+@app.route('/get_upload_script/', methods=["GET"])
+def get_upload_script():
+    # path may need to be changed on production
+    upload_script_handle = open("/data/services/common/CondDBFW/uploadConditions.py", "r")
+    upload_script_content = upload_script_handle.read()
+    upload_script_handle.close()
+    return upload_script_content
+
+# used to construct responses so the contents of the server side log file can be appended to each error response
+def construct_response(response_dictionary):
+    g.usage.close_log_handle()
+
+    # get contents of log
+    log_data = base64.b64encode(g.usage.get_log_data())
+
+    logging.debug(len(log_data))
+
+    final_response_dictionary = response_dictionary
+    final_response_dictionary.update({"log_data" : log_data})
+
+    # if an error has occurred (error key is in response dictionary)
+    # close the upload session and release the tag lock
+    if "error" in final_response_dictionary.keys():
+        g.usage.close_upload_session()
+
+    # close connection to destination database that
+    # this request was using
+    g.usage.end_usage()
+
+    return json.dumps(final_response_dictionary)
+
+@app.route('/get_tag_dictionary/', methods=["GET", "POST"])
+def get_tag_dictionary():
+    tag_name = request.args.get("tag_name")
+    destination_database = request.args.get("database")
+
+    connection_object = database.Connection()
+    connection = connection_object.get_conddbfw_con()
+    tag = connection.tag(name=tag_name)
+    if tag == None:
+        return json.dumps({"error" : "Tag '%s' was not found in destination database." % tag_name})
+    tag_dictionary = tag.as_dicts(convert_timestamps=True)
+    logging.debug("Returning dictionary for tag '%s': '%s'", (tag_name, str(tag_dictionary)))
+    connection.close_session()
+    return jsonify(tag_dictionary)
+
+# allows client to open an upload session - this way we can join all requests submitted together
+# under a single upload session.
+@app.route('/get_upload_session/', methods=["GET", "POST"])
+def get_upload_session():
+
+    # create usage object in global variable g
+    # Note: g is global to the entire request - code inside function calls can access this
+    try:
+        g.usage = Usage()
+
+        data_in_body = json.loads(str(base64.b64decode(request.get_data())))
+        # make sure the client gave the destination tag name, so we can check if it's locked or not
+        destination_tag = data_in_body["destinationTag"]
+        username_or_token = data_in_body["username_or_token"]
+        password = data_in_body["password"]
+
+        logging.debug((destination_tag, username_or_token))
+
+        upload_session_data = g.usage.new_upload_session(destination_tag=destination_tag, username_or_token=username_or_token, password=password)
+    except Exception as e:
+        return json.dumps({"error" : str(e), "traceback" : traceback.format_exc()})
+
+    # return session id to client
+    if not("error" in upload_session_data.keys()):
+        # only say we have opened an upload session if no error was reported
+        g.usage.log("Upload session opened with token %s." % upload_session_data["id"])
+    else:
+        # error has already been logged by usage module
+        return construct_response(upload_session_data)
+
+    # construct_response will close all connections in usage object
+    return construct_response(upload_session_data)
+
+@app.route('/close_upload_session/', methods=["GET", "POST"])
+def close_upload_session():
+    upload_session_id = request.args.get("upload_session_id")
+    if upload_session_id == None:
+        return construct_response({"error" : "No upload session token given."})
+    try:
+        connection_object = database.Connection()
+        g.usage = get_usage_object(connection=connection_object)
+        g.usage.log("Closing the current upload session before the upload is completed.")
+        g.usage.close_upload_session(upload_session_id)
+    except Exception as e:
+        return json.dumps({"error" : str(e), "traceback" : traceback.format_exc()})
+
+    return construct_response({"upload_session_closed" : upload_session_id})
+
+@app.route('/get_fcsr/', methods=["GET", "POST"])
+def get_fcsr():
+
+    connection_object = database.Connection()
+
+    g.usage = get_usage_object(connection=connection_object)
+
+    if request.args.get("database") == None:
+        return construct_response({"error" : "No database was given in the request."})
+
+    g.usage.log("Attempting to get FCSR.")
+
+    connection = connection_object.get_conddbfw_con()
+
+    source_tag_synchronization = request.args.get("sourceTagSync")
+    destination_tag_name = request.args.get("destinationTag")
+    # for upload replays of uploads that happened on the old upload service during testing
+    tier0_response = request.args.get("tier0_response")
+
+    # we must have a synchronization type at least
+    if source_tag_synchronization == None:
+        g.usage.log("\tSource Tag synchronization not found - don't know how to validate IOVs!")
+        return construct_response({"error" : "Source tag synchronization not given."})
+
+    # if the dest tag doesn't exist, the sync given for fcsr filtering is automatically valid
+    # if the dest tag exists and its sync is different to the one given for fcsr filtering
+    # change to the dest tag sync (users cannot override the sync type for IOV validation)
+    dest_tag_object = connection.tag(name=destination_tag_name)
+    fcsr_changed = False
+    if dest_tag_object == None:
+        g.usage.log("\tDestination Tag doesn't exist - sync given for fcsr filtering is therefore valid.")
+    elif dest_tag_object.synchronization != source_tag_synchronization and dest_tag_object.synchronization != "any":
+        # if the sync given is not equal to the dest sync and the dest sync is not "any", we must change to the dest sync
+        g.usage.log("\tSource Tag synchronization didn't match synchronization of destination Tag.  Changing to destination sync '%s'."\
+                        % dest_tag_object.synchronization)
+        fcsr_changed = True
+        source_tag_synchronization = dest_tag_object.synchronization
+
+    if source_tag_synchronization != "mc":
+        # if the new sync != mc, apply normal validation
+
+        # import validation module for sync type given
+        try:
+            module = importlib.import_module("app.sync_validation.%s" % source_tag_synchronization.lower())
+        except ImportError:
+            g.usage.log("\tNo validation module for synchronization '%s' was found." % source_tag_synchronization)
+            return construct_response({"error" : str(NoValidatorModuleException(source_tag_synchronization)),
+                    "traceback" : traceback.format_exc()})
+
+        try:
+            fcsr = module.Validator(iovs=None, destination_since=None, destination_tag_name=destination_tag_name, connection=connection, tier0_response=tier0_response).get_fcsr()
+            if destination_tag_name != None and connection.tag(name=destination_tag_name) != None:
+                time_type = connection.tag(name=destination_tag_name).time_type
+                g.usage.log("\tFCSR taken from sync '%s' is %d." % (source_tag_synchronization, friendly_since(time_type, fcsr)))
+            else:
+                g.usage.log("\tFCSR obtained - returning to client.")
+        except Exception as e:
+            return construct_response({"error" : str(e), "traceback" : traceback.format_exc()})
+
+    else:
+        # if the new sync == mc, return the new_sync as mc to the client-side
+        fcsr = 1
+
+    # the fcsr will be lumi-based, so the client side should have converted sinces
+    # to their equivalent in lumi-based before doing FCSR filtering
+    return construct_response({"fcsr" : fcsr, "fcsr_changed" : fcsr_changed, "new_sync" : source_tag_synchronization})
+
+def find_new_hashes(connection, received_hashes):
+    g.usage.log("Checking hashes: %s" % str(received_hashes))
+    not_found = []
+    for hash_received in received_hashes:
+        pl_found = connection.payload(hash=hash_received)
+        if not(pl_found):
+            not_found.append(hash_received)
+    return not_found
+
+@app.route('/check_hashes/', methods=["GET", "POST"])
+def check_hashes():
+
+    connection_object = database.Connection()
+
+    g.usage = get_usage_object(connection=connection_object)
+    connection = connection_object.get_conddbfw_con()
+
+    g.usage.log("Received Payload hashes from client.")
+
+    hashes = json.loads(request.get_data())
+
+    # Return hashes that are not in db by testing connection.payload for NoneType return value
+    # Note: NoneType in CondDBFW means no record was returned.
+
+    g.usage.log("\tComputing list of Payload hashes not found.")
+
+    try:
+        #not_found = [hash for hash in hashes if not(connection.payload(hash=hash))]
+        not_found = find_new_hashes(connection, hashes)
+    except Exception as e:
+        # this exception may need to be tighter (more specific exception type)
+        logging.debug(traceback.format_exc())
+        return construct_response({"error" : str(e), "traceback" : traceback.format_exc()})
+
+    # list of hashes string
+    list_string = ", ".join(map(lambda pl_hash : "'%s'" % pl_hash, not_found))
+    g.usage.log("\tFinished computing list of hashes not found: %s" % list_string)
+    hashes_found = list(set(hashes)-set(not_found))
+
+    g.usage.log("Returning list to client.")
+
+    # for now, keep hashes_received so if we need we can do safety checks on the client side
+    return construct_response({"hashes_received" : hashes, "hashes_not_found" : not_found})
+
+@app.route('/store_payload/', methods=["GET", "POST"])
+def store_blobs():
+
+    connection_object = database.Connection()
+
+    g.usage = get_usage_object(connection=connection_object)
+
+    # NOTE: may have to do base64 encoding for streamer_info column at some point.
+    # blobs will be in base64, so have to decode that before inserting into db as buffer
+
+    columns = ["hash", "object_type", "data", "streamer_info", "version", "insertion_time"]
+    data = []
+
+    # blob is the request body, so get this and convert to string
+    blob = str(request.get_data())
+
+    try:
+        # for each column, gets it value stored in the URL
+        data = [None for n in range(len(columns))]
+        for n in range(len(columns)):
+            data[n] = request.args.get(columns[n])
+            if columns[n] != "data" and data[n] == None:
+                raise KeyError(columns[n])
+    except KeyError as k:
+        traceback.print_exc()
+        return construct_response({"error" : "Couldn't get all payload column data from URL of request.", "traceback" : traceback.format_exc()})
+
+    try:
+        # decode blob from base 64 and convert to bytestream
+        data[2] = buffer(base64.b64decode(blob))
+        data[3] = buffer(data[3])
+    except Exception as e:
+        logging.debug(traceback.format_exc())
+        g.usage.log("Failed to decode Payload BLOBs (data or streamer_info) from base64.")
+        return construct_response({"error" : "Failed to decode Payload BLOB from base64."})
+
+    g.usage.log("BLOB with hash '%s' received and decoded.  Processing it now:" % data[0])
+
+    try:
+
+        # verify that the blob matches the hash we've received
+        # recompute hash of blob
+        hasher = hashlib.sha1(data[1])
+        hasher.update(data[2])
+        recomputed_hash = hasher.hexdigest()
+
+        hashes_match = str(recomputed_hash == data[0])
+        g.usage.log("\tRecomputed hash matches received hash." if hashes_match else "\tRecomputed hash does not match received hash - error.")
+        if not(hashes_match):
+            return construct_response({"error" : "Hashes do not match - '%s' != '%s'." % (recomputed_hash, data[0])})
+
+    except Exception as e:
+        g.usage.log("\tHash check on received Payload BLOB failed.")
+        return construct_response({"error" : str(e), "traceback" : traceback.format_exc()})
+
+    data[5] = to_timestamp(datetime.datetime.now())
+
+    # keep using raw sql for now (instead of CondDBFW) - converting to CondDBFW objects takes time we can use elsewhere.
+
+    g.usage.log("\tWriting Payload to Destination Database.")
+
+    connection = connection_object.get_conddbfw_con()
+    engine = connection.engine
+    con = engine.connect()
+
+    hash_inserted = True
+
+    try:
+        if "oracle://" in request.args.get("database"):
+            con.execute("insert into payload (hash, object_type, data, streamer_info, version, insertion_time) "\
+                        + "values (:1, :2, :3, :4, :5, to_timestamp(:6, 'YYYY-MM-DD HH24:MI:SS.FF'))", data)
+        elif "sqlite" in request.args.get("database"):
+            con.execute("insert into payload (hash, object_type, data, streamer_info, version, insertion_time) values (?, ?, ?, ?, ?, ?)", data)
+        g.usage.log("\tPayload with hash '%s' inserted into Destination Database." % data[0])
+    except IntegrityError as e:
+        # if an integrity error, just means the payload has been inserted since the start of the upload session
+        pass
+    except Exception as e:
+        exception_string = traceback.format_exc()
+        logging.debug(exception_string)
+        # should some kind of rollback happen here?
+        hash_inserted = False
+        # may need to change how the exception's message is accessed
+        g.usage.log("\tPayload with hash '%s' not inserted: %s" % (data[0], str(e.message)))
+        return construct_response({"error" : "Payload with hash '%s' not inserted." % data[0], "traceback" : exception_string})
+
+    # close engine that we can issue raw sql through
+    con.close()
+
+    g.usage.log("Payload insertion complete for hash '%s' - returning response to client." % data[0])
+
+    return construct_response({"match" : hashes_match, "hash" : data[0]})
+
+
+@app.route('/upload_metadata/', methods=["POST", "GET"])
+def upload_metadata():
+
+    connection_object = database.Connection()
+
+    g.usage = get_usage_object(connection=connection_object)
+
+    # Take metadata from POST request body, parse it into dictionary (from JSON), and give it to an instance of MetadataHandler.
+    # MetadataHandler will do validation (including Synchronization validation with SyncValidation), and change any data in it.
+
+    g.usage.log("Starting Metadata validation and upload.")
+
+    try:
+        # try-except will catch every error that can come out of metadata handling (metadata handling doesn't catch them)
+        # or in the case that it does, it throws a custom exception for us to catch here
+        metadata_dictionary = json.loads(request.get_data())
+
+        from metadata_handler import MetadataHandler
+        handler = MetadataHandler(metadata_dictionary, connection_object)
+
+        validated_data = handler.get_metadata()
+
+        g.usage.log("Metadata validation and upload successful.")
+
+        # close upload session
+        #upload_session_id = int(request.args.get("upload_session_id"))
+        g.usage.close_upload_session()
+
+        # close log handle - have to do this for downloading log data in the last request to work
+        # if g.usage.end_usage was used here, we could no longer connect to the usage database to get the log data
+        g.usage.close_log_handle()
+
+        # get contents of log
+        log_data = base64.b64encode(g.usage.get_log_data())
+
+        return construct_response({"log_data" : log_data})
+    except Exception as e:
+        # this handles all exceptions that occur in the metadata handler
+        # note that some exceptions are intercepted before being raised (caught and re-raised) - these will be custom exceptions
+        g.usage.log("An exception occurred while handling Metadata:\n%s : %s" % (str(e), str(e.message)))
+        exception_traceback = traceback.format_exc()
+        g.usage.log(exception_traceback)
+        return construct_response({"error" : "Something went when processing metadata: '%s'" % str(e), "traceback" : exception_traceback})
+
+
+@app.route('/heartbeat/')
+def heartbeat():
+    gitInfo = run_in_shell('/usr/bin/git describe --all --long', shell = True)
+    return jsonify( {'lastUpdate' : datetime.datetime.utcnow(), 'gitInfo' : gitInfo } )
+
+# a simple "echo" method
+@app.route('/echo/<string:what>', methods=['POST'])
+def echo(what):
+    return jsonify( { 'echo' : str(what) } )
+
+# --- error handlers
+
+"""@auth.error_handler
+def unauthorized():
+    # return 403 instead of 401 to prevent browsers from displaying the default
+    # auth dialog
+    return make_response(jsonify({'message': 'Unauthorized access'}), 403)"""
+
+@app.errorhandler(400)
+def bad_request(error):
+    return make_response(jsonify({'message': 'Bad request'}), 400)
+
+@app.errorhandler(404)
+def not_found(error):
+    return error404()
+
+@app.errorhandler(409)
+def integration_error(error):
+    return make_response(jsonify({'message': 'Duplicate entry'}), 409)
+
+@app.errorhandler(500)
+def internal_error(error):
+    return make_response(jsonify({'message': 'Internal server error'}), 500)
+
+# --- utilities
+
+def success():
+    return make_response(jsonify({'success': True}), 200)
+
+def error404():
+    return make_response(jsonify({'message': 'Not found'}), 404)
+
+def run_in_shell(*popenargs, **kwargs):
+    process = subprocess.Popen(*popenargs, stdout=subprocess.PIPE, **kwargs)
+    stdout = process.communicate()[0]
+    returnCode = process.returncode
+    cmd = kwargs.get('args')
+    if cmd is None:
+        cmd = popenargs[0]
+    if returnCode:
+        raise subprocess.CalledProcessError(returnCode, cmd)
+    return stdout
