@@ -15,7 +15,7 @@ from time import sleep
 
 class test_server_setup(unittest.TestCase):
     def setUp(self):
-        va.prepare("verdicts.db")
+        va.prepare("verdicts.db", logging=True)
 
     def test_connection(self):
         va.set_server("http://localhost:9002/")
