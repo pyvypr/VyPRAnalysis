@@ -296,7 +296,20 @@ def binding(id=None, binding_space_index=None, function=None, binding_statement_
             )
             binding_list.append(new_binding)
 
-        return binding_list
+        if binding_statement_lines is not None:
+            if type(binding_statement_lines) == int:
+                given_lines = [binding_statement_lines]
+            elif type(binding_statement_lines) == list:
+                given_lines = binding_statement_lines
+            new_list = []
+            for b in binding_list:
+                lines = json.loads(b.binding_statement_lines)
+                for line in lines:
+                    if line in given_lines: new_list.append(b)
+            return new_list
+
+        else: return binding_list
+
 
     else:
 
@@ -328,13 +341,15 @@ class FunctionCall(object):
                    self.trans
                )
 
-    def get_verdicts(self, value=None, property=None):
+    def get_verdicts(self, value=None, property=None, binding=None):
         """
         Get a list of verdicts generated during the current function call.
         Value can be 1 or 0.
             If value is given, verdicts will only have that value.
         Property can either be a property ID or object.
             If property is given, verdicts will be associated with that property.
+        Binding can either be a binding ID or object.
+            If binding is given, verdicts will be associated with that binding.
         """
         connection = get_connection()
         if value == None and property==None:
@@ -364,9 +379,14 @@ class FunctionCall(object):
             if warnings_on: print('No verdicts for given function call')
             return []
 
+        if binding!=None:
+            if type(binding) == Binding: binding = binding.id
+            if type(binding) != int: raise ValueError("parse binding ID or object as argument")
+
         verdicts_dict = json.loads(result)
         verdicts_list = []
         for v in verdicts_dict:
+            if binding != None and v["binding"]!=binding: continue
             verdict_class = verdict(v["id"], v["binding"], v["verdict"], v["time_obtained"], v["function_call"],
                                     v["collapsing_atom"])
             verdicts_list.append(verdict_class)
