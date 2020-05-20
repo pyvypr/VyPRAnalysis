@@ -1,4 +1,5 @@
 import sys
+import os
 sys.path.append("../../")
 
 import VyPRAnalysis as va
@@ -29,7 +30,7 @@ class test_function_methods(unittest.TestCase):
 
     def setUp(self):
         va.set_server("http://localhost:9001/")
-        va.set_monitored_service_path('/vypr/VyPRAnalysisTesting/')
+        va.set_monitored_service_path(os.path.abspath(""))
 
     def test_init(self):
         self.assertIsInstance(
@@ -286,6 +287,6 @@ class test_global_methods(unittest.TestCase):
 
 if __name__ == "__main__":
     va.prepare("verdicts.db", 9001, True)
-    va.set_monitored_service_path('tests/')
+    #va.set_monitored_service_path(os.path.abspath(""))
     unittest.main(exit=False)
     va.teardown()
