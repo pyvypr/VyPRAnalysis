@@ -1,5 +1,7 @@
 # VyPRAnalysis
 
+![VyPR Analysis CI](https://github.com/pyvypr/VyPRAnalysis/workflows/VyPR%20Analysis%20CI/badge.svg)
+
 For Python 2.
 
 A self-contained library to use with VyPRServer at http://github.com/pyvypr/VyPRServer.

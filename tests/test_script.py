@@ -1,6 +1,9 @@
 import sys
 import os
+# to find VyPRAnalysis
 sys.path.append("../../")
+# to find VyPR
+sys.path.append("VyPRServer")
 
 import VyPRAnalysis as va
 import VyPR
