@@ -297,15 +297,20 @@ def binding(id=None, binding_space_index=None, function=None, binding_statement_
             binding_list.append(new_binding)
 
         if binding_statement_lines is not None:
+
             if type(binding_statement_lines) == int:
                 given_lines = [binding_statement_lines]
             elif type(binding_statement_lines) == list:
                 given_lines = binding_statement_lines
+                
             new_list = []
             for b in binding_list:
                 lines = json.loads(b.binding_statement_lines)
-                for line in lines:
-                    if line in given_lines: new_list.append(b)
+                is_subset = True
+                for given_line in given_lines:
+                    if given_line not in lines: is_subset = False
+                if is_subset: new_list.append(b)
+
             return new_list
 
         else: return binding_list
