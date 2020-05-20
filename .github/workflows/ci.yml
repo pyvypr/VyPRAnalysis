@@ -4,6 +4,8 @@
 name: VyPR Analysis CI
 
 on:
+  pull_request:
+    branches: [ master ]
   push:
     branches: [ master ]
 
