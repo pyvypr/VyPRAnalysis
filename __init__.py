@@ -1,5 +1,6 @@
 import json
 import sys
+import subprocess
 
 from VyPRAnalysis.http_requests import VerdictServerConnection
 
@@ -76,23 +77,27 @@ def get_monitored_service_path():
     return monitored_service_path
 
 
-def prepare(db=None):
+def prepare(db=None, port=None, logging=False):
     """
     Given the database file name ``db``, set up an instance of a verdict server attached to that database
     in the background and then attempt to perform a handshake until the server is reachable.
     """
-    import subprocess
-    cmd = "cd VyPRServer/ && python run_service.py --port 9002 "
+    if port==None: port = 9002
+    cmd = "cd VyPRServer/ && python run_service.py --port %d " % port
     if db:
         cmd = cmd + "--db %s &" % db
     else:
         cmd = cmd + "&"
-    p = subprocess.Popen(cmd, shell=True)
+    if logging:
+        p = subprocess.Popen(cmd, stdin=open('logfile2.log','w'), stdout = open( 'logfile.log', 'w'), stderr=open( 'logfile.log', 'w'), shell=True)
+    else:
+        p = subprocess.Popen(cmd, shell=True)
+
 
     handshake_failed = True
     while handshake_failed:
         try:
-            set_server("http://localhost:9002/")
+            set_server("http://localhost:%d/" % port)
             handshake_failed = False
         except:
             handshake_failed = True

@@ -1,0 +1,270 @@
+"""
+
+Joshua Dawes - CERN, CMS - The University of Manchester
+
+File contains a class that verifies and applies changes to metadata received over http.
+
+Overview:
+
+MetadataHandler is instantiated with a metadata_dictionary (dict), containing a list of iov dictionaries,
+source tag data and data about where and how to synchronise values.
+
+All information that can be accessed after validation can be found in MetadataHandler.get_metadata().
+
+"""
+
+import sys
+import importlib
+import datetime
+import sqlalchemy
+import logging
+from flask import g, request
+import traceback
+
+from errors import *
+import CondDBFW
+import sync_validation
+from CondDBFW.utils import to_timestamp, to_datetime, friendly_since
+import database
+
+class MetadataHandler():
+	def __init__(self, metadata_dictionary, connection_object):
+		self.error = None
+		# metadata_dictionary is the dictionary representation of what was in the user's metadata file on the local machine.
+		self.metadata = metadata_dictionary
+
+		g.usage.log("\tBeginning to process input Tag and its IOVs.")
+
+		self._conddbfw_con = connection_object.get_conddbfw_con()
+
+		# check for destination tag
+		# may have to change this to make sure it always finds the destination tag name
+		self.destination_tag_name = metadata_dictionary["destinationTags"].keys()[0]
+		self.tag_in_destination = self._conddbfw_con.tag(name=self.destination_tag_name)
+		input_tag = self._conddbfw_con.models["tag"](self.metadata["inputTagData"])
+
+		g.usage.log("\tConnected to Destination Database.")
+
+		if self.tag_in_destination:
+			g.usage.log("\tDestination Tag '%s' found." % self.tag_in_destination.name)
+			# we need to make sure time_type, object_type and syncs of the destination tag and the source tag are the same
+			# if object_type is not, the payloads will not match between the two tags
+
+			if input_tag.time_type == self.tag_in_destination.time_type\
+				and input_tag.object_type == self.tag_in_destination.object_type:
+
+				# Tag is found - validate IOVs with respect to the destination tag synchronization type, and then insert them
+				# and update the tag modification time
+
+				g.usage.log("\tSource Tag matches Destination Tag - can copy IOVs to Destination Database.")
+
+				# check sinces based on the synchronization type
+				g.usage.log("\tValidating IOVs according to synchronization type '%s'." % input_tag.synchronization)
+				validation = self.process_iovs(self.tag_in_destination.synchronization)
+				g.usage.log("\tFinished validation of IOVs.")
+
+				self.insert_iovs()
+
+				# now IOVs have been inserted, change the tag's modification time, then commit
+				# use the insertion time of the iovs as the new modification time of this tag
+				# Note: the replace "," with "." is because sometimes "," has been used for timestamps
+				self.tag_in_destination.modification_time = to_datetime(self.metadata["iovs"][0]["insertion_time"].replace(",", "."))
+
+				g.usage.log("\tDestination Tag modification time updated to %s." % self.tag_in_destination.modification_time)
+			else:
+				# source tag is not the same as destination tag - we cannot upload IOVs to it
+
+				g.usage.log("\tSource tag doesn't match destination tag - cannot copy IOVs, or there will be incompatible Payload types.")
+				g.usage.log("\t%s %s %s" % (input_tag.time_type,\
+									"==" if input_tag.time_type == self.tag_in_destination.time_type else "!=",\
+									self.tag_in_destination.time_type))
+				g.usage.log("\t%s %s %s" % (input_tag.object_type,\
+									"==" if input_tag.object_type == self.tag_in_destination.object_type else "!=",\
+									self.tag_in_destination.object_type))
+				raise TagMismatchException(source_tag=input_tag, dest_tag=self.tag_in_destination)
+		else:
+			# Tag was not found - we have to create it, process IOVs with synchronization type "any",
+			# insert the Tag, and then insert the IOVs (Tag goes first because of foreign key constraint defined in oracle)
+			g.usage.log("\tTag '%s' not found in Destination Database.  Creating new Tag with synchronization 'any'." % (self.destination_tag_name))
+
+			# Note: synchronization validation is responsible for throwing its own exception on incorrect data.
+
+			# process IOVs
+			g.usage.log("\tValidating IOVs according to synchronization type 'any'.")
+			self.process_iovs("any")
+
+			# currently, list of iovs is passed to take the insertion_time from
+			new_tag = self.construct_new_tag(self.destination_tag_name, self.metadata["iovs"])
+
+			g.usage.log(new_tag.as_dicts())
+
+			# write new tag to database
+			self._conddbfw_con.session.add(new_tag)
+			# commit changes to database
+			self._conddbfw_con.session.commit()
+
+			g.usage.log("\tWritten new Tag '%s' to Destination Database." % new_tag.name)
+
+			# set new_tag as an instance variable so the routing module in the service can check
+			# to see if a new tag has been created while handling the metadata
+			self.metadata["newTag"] = new_tag.as_dicts(convert_timestamps=True)
+
+			# insert IOVs now Tag has been inserted.
+			final_iovs = self.insert_iovs()
+			# final output to tell the user which data has been written
+			g.usage.log("\tNew Tag and IOVs written to Destination Database.  Metadata upload finished.")
+		try:
+			self._conddbfw_con.session.commit()
+		except:
+			g.usage.log("\tError when performing IOV insertion.")
+			g.usage.log(traceback.format_exc())
+
+		"""
+		***************************************************************
+		No need to close database session - this will be done by usage!
+		***************************************************************
+		"""
+
+	def insert_iovs(self):
+		# Note: commiting transaction with database is done by method that calls this
+		# write iovs to database connection at self._conddbfw_con
+		# first, convert iov dictionaries to objects
+		iov_objects = map(lambda iov_dict : self._conddbfw_con.models["iov"](iov_dict), self.metadata["iovs"])
+		if self.metadata["inputTagData"]["time_type"] == "Run":
+			#g.usage.log("\tRun-based Tag, so changing sinces back to Run-based from Lumi-based.")
+			# convert iovs back to run sinces
+			for (i, iov) in enumerate(iov_objects):
+				# get run number from lumi-based since of IOV
+				iov_objects[i].since = iov_objects[i].since >> 32
+		try:
+			# for each iov, write to database
+			g.usage.log("\tWriting IOVs.")
+			for iov in iov_objects:
+				# change the tag that the IOV belongs to to the metadata destination tag
+				iov.tag_name = self.destination_tag_name
+				iov.insertion_time = to_datetime(iov.insertion_time.replace(",", "."))
+				g.usage.log("\t\tWriting IOV with hash '%s' to Destination Database to since %d."\
+							% (iov.payload_hash, friendly_since(self.metadata["inputTagData"]["time_type"], iov.since)))
+				self._conddbfw_con.session.add(iov)
+				g.usage.log("\t\tIOV written.")
+			g.usage.log("\tAll IOVs written to Destination Database.")
+		except ValueError as v:
+			if "not match format" in str(e):
+				g.usage.log("\tInsertion time '%s' given for IOV with since %d was not valid."\
+							% (iov.insertion_time, friendly_since(self.metadata["inputTagData"]["time_type"], iov.since)))
+				# raise custom exception
+				raise InvalidTimestampException(object_name="IOV", field="insertion_time", timestamp_string=iov.insertion_time)
+		# don't catch general exception - leave this to top level catch in the routes module
+		return CondDBFW.data_sources.json_data_node.make(iov_objects)
+
+	def get_source_tag(self):
+		return self.metadata["inputTagData"]
+
+	def get_metadata(self):
+		return self.metadata
+
+	# constructs new tag from source tag given in sqlite file (stored in dictionary given to this instance
+	# of MetadataHandler)
+	# takes list of iov dictionaries
+	def construct_new_tag(self, tag_name, iovs):
+
+		g.usage.log("\t\tConstructing new Tag for insertion.")
+
+		tag_dictionary = {"name" : tag_name}
+		for key in ["time_type", "object_type", "end_of_validity",\
+					"description", "last_validated_time", "insertion_time", "modification_time"]:
+			tag_dictionary.update({key : self.metadata["inputTagData"][key]})
+
+		# set up properties of new tag
+
+		# new tags get synchronization type "any"
+		tag_dictionary["synchronization"] = "any"
+		new_tag = self._conddbfw_con.models["tag"](tag_dictionary)
+
+		new_time = to_datetime(iovs[0]["insertion_time"].replace(",", "."))
+
+		new_tag.insertion_time = new_time
+		new_tag.modification_time = new_time
+
+		try:
+			new_tag.description = self.metadata["userText"]
+		except:
+			new_tag.description = "Tag inserted at %s from CondDBFW upload client." % new_time
+			g.usage.log("\t\tNo description found for new Tag - setting description as '%s'." % new_tag.description)
+
+		return new_tag
+
+	# an exception can be raised in this method that will be caught in __init__
+	def process_iovs(self, synchronization):
+
+		if self.metadata["inputTagData"]["time_type"] == "Time":
+			g.usage.log("\t\tCan't do validation on time-based Tags.  Writing IOVs WITHOUT validation.")
+		else:
+			g.usage.log("\t\tSynchronization being used is '%s'." % synchronization)
+			g.usage.log("\t\tStarting validation for synchronization '%s'." % synchronization)
+
+			# import the synchronization validation module for the synchronization we've been given
+			try:
+				module = importlib.import_module("app.sync_validation.%s" % synchronization.lower())
+			except ImportError:
+				g.usage.log("\t\t\tNo validation module for synchronization '%s' was found." % synchronization)
+				traceback_string = traceback.format_exc()
+				raise NoValidatorModuleException(synchronization, traceback=traceback_string)
+
+			# use destination tag name - this is currently only used by the offline sync validation
+			# connection is to the database pointed to by metadata, so this is useful for validation that requires that database
+			validator = module.Validator(iovs=self.metadata["iovs"], destination_since=self.metadata["since"],\
+											destination_tag_name=self.destination_tag_name, connection=self._conddbfw_con, tier0_response=self.metadata.get("tier0_response"))
+			# store validated IOVs (this may result in an exception, which case we return the exception
+			# and this is returned in the http response to the client).
+			new_metadata = validator.validate()
+
+			# note that we do not check if the since has changed because this check is done in the validation module
+			self.metadata["iovs"] = new_metadata["iovs"]
+			# new since will be in the lumi format
+			self.metadata["since"] = new_metadata["since"]
+
+			# check that the resulting since is not strictly less than the minimum since found in the list of IOVs
+			# if it is, we do not have conditions to cover the target since
+			minimum_since = min(map(lambda iov : iov["since"], self.metadata["iovs"]))
+			if self.metadata["since"] < minimum_since:
+				raise InvalidMetadataException(since_error="The final since was below the smallest IOV since, so there was a hole in IOV coverage.")
+
+		# post validation processing (or possibly just processing, in the case of time-based Tags)
+		# assuming destination since is now valid
+
+		# because we don't have an sqlite database to query (everything's in a dictionary), we have to go through the IOVs manually
+		# find the greatest since that's less than the destination since - the logic behind this is:
+		# 	1) if we have IOVs that cover a range 0-99, 100-199, 200-299, and we want to export 150, then the
+		#	greatest since below this is 100, so we take only IOVs with sinces >= 100
+		#	2) we then change all the sinces below 150 (destination since) to have since = 150
+
+		# now, the fcsr we have is lumi-based whether we have run-based or lumi-based iovs
+		# so comparing them is easy
+		
+		# 1)
+		max_since_below_dest = self.metadata["iovs"][0]["since"]
+		for (i, iov) in enumerate(self.metadata["iovs"]):
+			if self.metadata["iovs"][i]["since"] <= self.metadata["since"] and self.metadata["iovs"][i]["since"] > max_since_below_dest:
+				max_since_below_dest = self.metadata["iovs"][i]["since"]
+
+		g.usage.log("\t\t\tMaximum since taken from below the destination since is %d." % friendly_since(self.metadata["inputTagData"]["time_type"], max_since_below_dest))
+
+		# 2)
+		# only select iovs that have sinces >= max_since_below_dest
+		# and then shift any IOVs left to the destination since
+		self.metadata["iovs"] = filter(lambda iov : iov["since"] >= max_since_below_dest, self.metadata["iovs"])
+		for (i, iov) in enumerate(self.metadata["iovs"]):
+			if self.metadata["iovs"][i]["since"] < self.metadata["since"]:
+				self.metadata["iovs"][i]["since"] = self.metadata["since"]
+				g.usage.log("\t\t\tShifted IOV with hash '%s' to since %d."\
+							% (self.metadata["iovs"][i]["payload_hash"], friendly_since(self.metadata["inputTagData"]["time_type"], self.metadata["iovs"][i]["since"])))
+
+		# modify insertion_time of iovs
+		new_time = CondDBFW.models.to_timestamp(datetime.datetime.now())
+		for (i, iov) in enumerate(self.metadata["iovs"]):
+			self.metadata["iovs"][i]["insertion_time"] = new_time
+
+		g.usage.log("\t\tEnding validation for synchronization '%s'." % str(synchronization))
+		g.usage.log("\t\tIOVs validated - since %i given is valid for sync type %s."\
+					% (friendly_since(self.metadata["inputTagData"]["time_type"], self.metadata["since"]), synchronization))
