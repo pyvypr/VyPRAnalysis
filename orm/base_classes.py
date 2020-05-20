@@ -88,7 +88,6 @@ class Function(object):
         # construct the scfg of the code inside the function
         scfg = CFG()
         scfg.process_block(function_def.body)
-        print(type(scfg))
         return scfg
 
     def get_bindings(self):
@@ -419,11 +418,13 @@ class FunctionCall(object):
         Locally reconstruct the entire path taken by this function call (if there was path instrumentation).
         """
         connection = get_connection()
-        json_result = connection.request('client/get_path_conditions_by_function_call_id/%i/' % self.id)
+        json_result = connection.request('client/path_condition_structure/function_call/%i/' % self.id)
         path_condition_list = json.loads(json_result)
-        trimmed_path_condition_list = list(reversed(path_condition_list[0:-1]))
+        #print("path for whole function")
+        #print(path_condition_list)
+        #trimmed_path_condition_list = list(reversed(path_condition_list[0:-1]))
         # TODO: at the moment, I don't think we need to deserialise...
-        edges = edges_from_condition_sequence(scfg, trimmed_path_condition_list, -1)
+        edges = edges_from_condition_sequence(scfg, path_condition_list, -1)
         return edges
 
 
@@ -553,7 +554,7 @@ class Verdict(object):
 
     def __repr__(self):
         return "<%s id=%i, binding=%i, verdict=%i, time_obtained=%s, function_call=%i, collapsing_atom=%i, " \
-               "collapsing_atom_sub_index=%i" % \
+               "collapsing_atom_sub_index=%i>" % \
                (
                    self.__class__.__name__,
                    self.id,
@@ -854,6 +855,8 @@ class Observation(object):
         result_dict = json.loads(json_result)
         path_condition_list = result_dict["path_subchain"]
         path_length = result_dict["path_length"]
+        print("reaching path")
+        print(path_condition_list)
         #trimmed_path_condition_list = list(reversed(path_condition_list[0:-1]))
         # TODO: at the moment, I don't think we need to deserialise...
         edges = edges_from_condition_sequence(scfg, path_condition_list, path_length)

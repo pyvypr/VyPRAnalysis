@@ -163,6 +163,45 @@ Path analysis classes.
 """
 
 
+class Path(object):
+    """
+    Models a program path, which internally is a list of edges in a Symbolic Control-Flow Graph.
+    """
+
+    def __init__(self, edge_list):
+        self._edge_list = edge_list
+
+
+class ParametricPath(object):
+    """
+    Models a program path with a hole that can be filled by taking one of multiple possible paths.
+    """
+
+    def __init__(self, parametric_parse_tree):
+        self._parse_tree = parametric_parse_tree
+        self._edge_vertex_list = parametric_parse_tree.read_leaves()
+
+    def get_parameter_value(self, parameter):
+        """
+        Get the subpath taken by the current path at ``parameter``.
+        """
+        return self._parse_tree.get_parameter_subtree(parameter.path).read_leaves()
+
+
+class PathParameter(object):
+    """
+    Internal wrapper class for path parameters, so users don't have to deal with the lists of parse tree edges
+    that are actually used in the implementation of path parameters.
+    """
+
+    def __init__(self, path, function_name):
+        self.path = path
+        self.function_name = function_name
+
+    def __repr__(self):
+        return "<PathParameter for line %i, function='%s'>" % (self.path[-1]._structure_obj.lineno, self.function_name)
+
+
 class PathCollection(object):
     """
     Models a set of paths, obtained by direct reconstruction or modification of already reconstructed paths.
@@ -197,12 +236,31 @@ class PathCollection(object):
             ),
             self._paths
         )
+        # determine intersection of the parse trees
         intersection_tree = parse_trees[0].intersect(parse_trees[1:])
+        # determine path with parameters
         parametric_path = intersection_tree.read_leaves()
+        # for any parameters in the path, determine the paths to those parameters
+        path_parameters = []
+        intersection_tree.get_parameter_paths(intersection_tree._root_vertex, [], path_parameters)
+        path_parameters = map(lambda param : PathParameter(param, self._function_name), path_parameters)
+        # construct the final path collection
         if not (starting_vertex):
-            return ParametricPathCollection([parametric_path], self._scfg, self._function_name)
+            return ParametricPathCollection(
+                [parametric_path],
+                self._paths,
+                path_parameters,
+                self._scfg,
+                self._function_name
+            )
         else:
-            return PartialParametricPathCollection([parametric_path], self._scfg, self._function_name)
+            return PartialParametricPathCollection(
+                [parametric_path],
+                self._paths,
+                path_parameters,
+                self._scfg,
+                self._function_name
+            )
 
     def show_critical_points_in_file(self, filename=None, verbose=False):
         """
@@ -304,8 +362,10 @@ class ParametricPathCollection(PathCollection):
     of the monitored function.
     """
 
-    def __init__(self, paths, scfg, function_name):
-        super(ParametricPathCollection, self).__init__(paths, scfg, function_name, parametric=True)
+    def __init__(self, paths, original_paths, path_parameters, scfg, function_name):
+        PathCollection.__init__(self, paths, scfg, function_name, parametric=True)
+        self._original_paths = original_paths
+        self._path_parameters = path_parameters
 
 
 class PartialPathCollection(PathCollection):
@@ -324,12 +384,15 @@ class PartialPathCollection(PathCollection):
 
 class PartialParametricPathCollection(PathCollection):
     """
-    Models a collection of paths with which all diverge at the same point in the source code, and do not
+    Models a collection of paths which all diverge at the same point in the source code, and do not
     start at the beginning of the monitored function.
     """
 
-    def __init__(self, paths, scfg, function_name):
-        super(PartialParametricPathCollection, self).__init__(paths, scfg, function_name, parametric=True)
+    def __init__(self, paths, original_paths, path_parameters, scfg, function_name):
+        PathCollection.__init__(self, paths, scfg, function_name, parametric=True)
+        self._original_paths = original_paths
+        self._path_parameters = path_parameters
+        self._grammar = scfg.derive_grammar()
 
     def intersection(self):
         """
@@ -338,6 +401,28 @@ class PartialParametricPathCollection(PathCollection):
         start in the same place).
         """
         return super(PartialParametricPathCollection, self).intersection(self._paths[0][0]._source_state)
+
+    def get_path_parameters(self):
+        """
+        Get the list of `path parameters`, which are objects that can be used internally to determine
+        which subpath was taken by a given program path at a specific point in the program.
+        """
+        return self._path_parameters
+
+    def get_subpaths_from_parameter(self, path_parameter):
+        """
+        Given a ``PathParameter`` object in ``path_parameter``, get the subpath given to it by this
+        parametric path.
+        """
+        path_parameter = path_parameter.path
+        parameter_values = []
+        for path in self._original_paths:
+            parse_tree = ParseTree(path, self._grammar, path[0]._source_state, parametric=True)
+            subtree = parse_tree.get_parameter_subtree(path_parameter)
+            subpath = subtree.read_leaves()
+            parameter_values.append(subpath)
+
+        return parameter_values
 
 
 class ObservationCollection(object):
@@ -367,7 +452,6 @@ class ObservationCollection(object):
             ).function
         )
 
-        #scfg = function_obj.get_graph() if not (scfg) else scfg
         function_name = function_obj.fully_qualified_name
 
         # get the path length of the instrumentation point of this
@@ -379,21 +463,18 @@ class ObservationCollection(object):
 
         condition_sequences = []
         for observation in self._observations:
-            # print("-"*100)
-            # print("obtaining condition sequence for observation %s" % observation)
-            condition_sequence = json.loads(connection.request("get_path_condition_sequence/%i/" % observation.id))[
-                "path_subchain"]
-            condition_sequence = map(deserialise_condition, condition_sequence)
-            # print(condition_sequence)
-            # print("-"*100)
+            result_dictionary = json.loads(
+                connection.request("client/get_path_condition_sequence/%i/" % observation.id)
+            )
+            condition_sequence = result_dictionary["path_subchain"]
+
+            #condition_sequence = map(deserialise_condition, condition_sequence)
             condition_sequences.append(condition_sequence)
 
         paths = []
 
         for condition_sequence in condition_sequences:
             reconstructed_path = edges_from_condition_sequence(scfg, condition_sequence, reaching_path_length)
-            # print(reconstructed_path)
             paths.append(reconstructed_path)
-            # print("-"*100)
 
         return PathCollection(paths, scfg, function_name)
