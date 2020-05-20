@@ -286,6 +286,6 @@ class test_global_methods(unittest.TestCase):
 
 if __name__ == "__main__":
     va.prepare("verdicts.db", 9001, True)
-    va.set_monitored_service_path('/vypr/VyPRAnalysisTesting/')
+    va.set_monitored_service_path('tests/')
     unittest.main(exit=False)
     va.teardown()
