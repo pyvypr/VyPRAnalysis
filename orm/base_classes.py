@@ -364,7 +364,7 @@ class FunctionCall(object):
             if type(property)==str or type(property)==unicode:
                 result = connection.request('client/function_call/id/%d/hash/%s/verdicts/' % (self.id, property))
             else:
-                raise ValueError("parse property hash or a property object as argument")
+                raise ValueError("pass property hash or a property object as argument")
                 return
         else:
             if type(property) == Property:
@@ -372,7 +372,7 @@ class FunctionCall(object):
             if type(property)==str or type(property)==unicode:
                 result = connection.request('client/function_call/id/%d/verdict/value/%d/hash/%s/' % (self.id, value, property))
             else:
-                raise ValueError("parse property hash or a property object as argument")
+                raise ValueError("pass property hash or a property object as argument")
                 return
 
         if result == "[]":
@@ -381,7 +381,7 @@ class FunctionCall(object):
 
         if binding!=None:
             if type(binding) == Binding: binding = binding.id
-            if type(binding) != int: raise ValueError("parse binding ID or object as argument")
+            if type(binding) != int: raise ValueError("pass binding ID or object as argument")
 
         verdicts_dict = json.loads(result)
         verdicts_list = []
