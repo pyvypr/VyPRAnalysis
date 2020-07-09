@@ -14,9 +14,7 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('.'))
-
-print(os.listdir("/home/docs/checkouts/readthedocs.org/user_builds/vypranalysis/checkouts/latest/"))
+sys.path.insert(0, os.path.abspath('/home/docs/checkouts/readthedocs.org/user_builds/vypranalysis/checkouts/latest'))
 
 
 # -- Project information -----------------------------------------------------
