@@ -1,6 +1,6 @@
 Interprocedural Analysis
 =================================================
 
-.. autoclass:: interprocedural.CallTree
+.. autoclass:: VyPRAnalysis.interprocedural.CallTree
    :noindex:
    :members:
