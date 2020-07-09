@@ -16,7 +16,7 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('.'))
 
-print(os.listdir("."))
+print(os.listdir("/home/docs/checkouts/readthedocs.org/user_builds/vypranalysis/"))
 
 
 # -- Project information -----------------------------------------------------
