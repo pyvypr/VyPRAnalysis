@@ -10,7 +10,7 @@ def edges_from_condition_sequence(scfg, path_subchain, instrumentation_point_pat
     Given a Symbolic Control-Flow Graph ``scfg``, a path subchain and a path length, reconstruct a program execution
     path as a sequence of edges from a Symbolic Control-Flow Graph.
     """
-    print("reconstruction with path subchain %s" % str(path_subchain))
+    #print("reconstruction with path subchain %s" % str(path_subchain))
     condition_index = 0
     curr = scfg.starting_vertices
     #path = [curr]
@@ -18,7 +18,7 @@ def edges_from_condition_sequence(scfg, path_subchain, instrumentation_point_pat
     cumulative_conditions = []
     while condition_index < len(path_subchain):
         #path.append(curr)
-        print(curr._name_changed)
+        #print(curr._name_changed)
         if len(curr.edges) > 1:
             # more than 1 outgoing edges means we have a branching point
 
@@ -122,8 +122,8 @@ def edges_from_condition_sequence(scfg, path_subchain, instrumentation_point_pat
             curr = curr.edges[0]._target_state
             #print("condition index %i from condition chain length %i" % (condition_index, len(path_subchain)))
         elif curr._name_changed == ["post-try-catch"]:
-            print("traversing post-try-catch", curr.edges)
-            print(path_subchain[condition_index])
+            #print("traversing post-try-catch", curr.edges)
+            #print(path_subchain[condition_index])
             if len(curr.edges) > 0 and curr.edges[0]._target_state._name_changed != ["post-try-catch"]:
                 # consume the condition
                 condition_index += 1

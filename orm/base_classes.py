@@ -214,7 +214,7 @@ class Binding(object):
         else:
             self.binding_space_index = binding_space_index
             self.function = function
-            self.binding_statement_lines = binding_statement_lines
+            self.binding_statement_lines = ast.literal_eval(binding_statement_lines)
             self.property_hash = property_hash
 
     def __repr__(self):

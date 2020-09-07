@@ -83,6 +83,7 @@ def prepare(db=None, port=None, logging=False):
     in the background and then attempt to perform a handshake until the server is reachable.
     """
     if port==None: port = 9002
+    print("Setting up server on port %i" % port)
     cmd = "cd VyPRServer/ && python run_service.py --port %d " % port
     if db:
         cmd = cmd + "--db %s &" % db

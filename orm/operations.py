@@ -197,6 +197,7 @@ class PathParameter(object):
     def __init__(self, path, function_name):
         self.path = path
         self.function_name = function_name
+        self.line_number = self.path[-1]._structure_obj.lineno
 
     def __repr__(self):
         return "<PathParameter for line %i, function='%s'>" % (self.path[-1]._structure_obj.lineno, self.function_name)
@@ -220,7 +221,7 @@ class PathCollection(object):
                    "\n\n".join(map(str, self._paths))
                )
 
-    def intersection(self, starting_vertex=None):
+    def find_disagreement(self, starting_vertex=None):
         """
         Return a ``ParametricPathCollection`` instance containing the single path resulting from the intersection
         of all paths in the current collection.
@@ -267,7 +268,7 @@ class PathCollection(object):
         Write out a version of a monitored file with markers to show instructions where paths diverged that lead to
         observations that VyPR recorded diverged.
         """
-        path = self.intersection()._paths[0]
+        path = self.find_disagreement()._paths[0]
         condition_lines = set()
         # doing this as a set to avoid highlighting the same lines multiple times
         for path_elem in path:
@@ -297,7 +298,7 @@ class PathCollection(object):
         Based on the intersection of the paths held by the current collection,
         determine the points of divergence in the relevant source code.
         """
-        path = self.intersection()._paths[0]
+        path = self.find_disagreement()._paths[0]
         condition_lines = set()
         # doing this as a set to avoid highlighting the same lines multiple times
         for path_elem in path:
@@ -373,13 +374,13 @@ class PartialPathCollection(PathCollection):
     Models a collection of paths which do not start from the starting vertex of the Symbolic Control-Flow Graph.
     """
 
-    def intersection(self):
+    def find_disagreement(self):
         """
         Perform intersection, but such that the parse trees used
         are generated starting from the beginning of each path (we assume the paths
         start in the same place).
         """
-        return super(PartialPathCollection, self).intersection(self._paths[0][0]._source_state)
+        return super(PartialPathCollection, self).find_disagreement(self._paths[0][0]._source_state)
 
 
 class PartialParametricPathCollection(PathCollection):
@@ -394,22 +395,22 @@ class PartialParametricPathCollection(PathCollection):
         self._path_parameters = path_parameters
         self._grammar = scfg.derive_grammar()
 
-    def intersection(self):
+    def find_disagreement(self):
         """
         Perform intersection, but such that the parse trees used
         are generated starting from the beginning of each path (we assume the paths
         start in the same place).
         """
-        return super(PartialParametricPathCollection, self).intersection(self._paths[0][0]._source_state)
+        return super(PartialParametricPathCollection, self).find_disagreement(self._paths[0][0]._source_state)
 
-    def get_path_parameters(self):
+    def get_regions_of_disagreement(self):
         """
         Get the list of `path parameters`, which are objects that can be used internally to determine
         which subpath was taken by a given program path at a specific point in the program.
         """
         return self._path_parameters
 
-    def get_subpaths_from_parameter(self, path_parameter):
+    def get_subpaths_in_region(self, path_parameter):
         """
         Given a ``PathParameter`` object in ``path_parameter``, get the subpath given to it by this
         parametric path.
